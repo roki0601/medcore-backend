@@ -1,6 +1,6 @@
 # Current state
 
-Статус среза: 2026-09-18.
+Статус среза: 2026-09-18 после merge backend foundation.
 
 Этот документ описывает фактическое состояние `medcore-backend`, а не желаемый
 результат. Целевая backend-архитектура находится в
@@ -8,115 +8,109 @@
 
 ## Краткий вывод
 
-Backend ещё не реализован. В репозитории нет Django-проекта, зависимостей,
-моделей, API, auth, migrations, tests, Docker-конфигурации или CI. Единственный
-tracked-файл с описанием backend — минимальный `README.md`.
+Backend foundation уже реализован. Репозиторий больше не является пустым
+skeleton: создан Django/DRF project, базовые domain apps, custom User,
+PostgreSQL/Redis configuration, healthcheck, OpenAPI, Docker/Compose и quality
+tooling.
 
-Следовательно, ниже нельзя ссылаться на существующие implementation patterns:
-их пока нет. Документы из `medcore-docs` описывают продукт и согласованные
-решения, но не доказывают наличие соответствующего кода.
+При этом продуктовые feature domains ещё в основном не реализованы: content,
+learning, subscriptions и media пока содержат только app skeleton, а полноценный
+auth/JWT flow ещё должен быть реализован по feature specs.
 
 ## Что реально есть в backend-репозитории
 
 | Область | Фактическое состояние |
 |---|---|
-| Django project | отсутствует; нет `manage.py`, `config/`, settings, ASGI/WSGI |
-| Django apps | отсутствуют |
-| Models / migrations | отсутствуют |
-| REST API | отсутствует |
-| Authentication / permissions | отсутствуют |
-| Dependencies | нет `pyproject.toml`, `uv.lock` и requirements-файлов |
-| Tests | отсутствуют |
-| Infrastructure | нет Dockerfile, compose, env example, CI |
-| Documentation | только начальный `README.md`; архитектурные документы создаются этим изменением |
-| Local tooling | `.serena/` не tracked и не является частью backend-контракта |
+| Django project | есть `manage.py`, `config/`, settings, ASGI/WSGI, URLs |
+| Django apps | `common`, `users`, `content`, `learning`, `subscriptions`, `media` |
+| User model | есть custom `users.User`: unique username, optional email/telegram identity, roles, timestamps |
+| Content models | ещё не реализованы |
+| Learning models | ещё не реализованы |
+| Subscription models | ещё не реализованы |
+| Media models | ещё не реализованы |
+| REST API | foundation есть; `/api/v1/health/` реализован |
+| Authentication | Django auth foundation есть; JWT/Telegram/password API flow ещё не реализован |
+| OpenAPI | `drf-spectacular` подключён, docs доступны через `/api/v1/docs/` |
+| Database | PostgreSQL configured |
+| Cache | Redis configured as Django cache |
+| Dependencies | `pyproject.toml` + `uv.lock`, Python 3.12 |
+| Tests/tooling | pytest, pytest-django, Ruff, pre-commit configured |
+| Infrastructure | Dockerfile, `compose.yaml`, `.env.example`, Makefile, GitHub automation |
+| Documentation | `AGENTS.md`, architecture docs, spec template и example spec |
 
-Проверки Django, pytest и lint невозможно запустить содержательно: проект и
-команды ещё не существуют.
+Backend foundation был смержен в `main` 2026-09-18. Поэтому новые агенты должны
+считать существующий код и tooling реальной baseline-реализацией, а не
+планируемой структурой.
+
+## Уже реализованные foundation decisions
+
+- Django + DRF modular monolith;
+- Python 3.12 + `uv`;
+- PostgreSQL как primary datastore;
+- Redis как cache;
+- domain apps: `users`, `content`, `learning`, `subscriptions`, `media`, `common`;
+- custom User с `BigAutoField` direction, username, optional email/Telegram identity, role;
+- `/api/v1/health/` как anonymous liveness endpoint;
+- OpenAPI через drf-spectacular;
+- CORS/CSRF configuration hooks;
+- Docker/Compose и Gunicorn;
+- pytest + Ruff + pre-commit.
+
+Эти foundation choices уже представлены в коде. Менять их как будто это ещё
+чистый design space нельзя без отдельного решения.
+
+## Что ещё не реализовано
+
+- JWT access/refresh и refresh revocation/blacklist;
+- Telegram verification/login;
+- password registration/login/reset/change;
+- content domain models и API;
+- learning/progress models и API;
+- Plan/Subscription/paywall policy;
+- Media/File storage integration;
+- import/bulk publish workflow;
+- throttling policy по конкретным endpoints;
+- feature-specific permissions;
+- основные product feature tests.
 
 ## Контекст из соседних репозиториев
 
-`medcore-docs` — отдельный репозиторий с продуктовым и архитектурным
-контекстом. Он является источником принятых продуктовых решений до тех пор,
-пока новое решение явно не оформлено. Особенно важны:
+`medcore-docs` остаётся источником принятых продуктовых решений. Важные
+источники:
 
-- `decisions/0004-mvp-decision-register.md` — 200 пунктов, из которых часть
-  явно помечена `TBD`;
-- `decisions/0005-decision-register-audit.md` — уточняет приоритет решений и
-  политику работы с `TBD`;
-- `architecture/overview.md` — общая схема runtime;
-- `architecture/backend-structure.md` — рабочий draft границ Django apps и
-  слоёв;
-- `architecture/database.md` — рабочий draft сущностей и связей;
-- `ai/context.md` и `AGENTS.md` — правила для AI-агентов;
-- `product/mvp.md`, `content/*` — MVP и контентный workflow.
+- `decisions/0004-mvp-decision-register.md` — исходный подробный реестр;
+- `decisions/0005-decision-register-audit.md` — аудит и правила приоритета;
+- `decisions/0006-anonymous-demo-content.md` — более новое решение о публичном
+  demo-контенте до авторизации;
+- `product/mvp.md`;
+- `architecture/*`;
+- `ai/context.md` и `AGENTS.md`.
 
-`medcore-frontend` содержит статический prototype «Кафедра». В нём данные и
-прогресс живут в JavaScript/localStorage, auth имитируется на клиенте, сервера
-нет. Это поведенческий референс, а не реализованный API или схема backend.
+`medcore-frontend` содержит статический prototype «Кафедра», styleguide и
+frontend spec. Он является визуальным/поведенческим референсом, но localStorage,
+demo IDs и локальная auth-имитация не являются backend contract.
 
-## Уже принятые решения, которые должны быть сохранены
+## Актуальные продуктовые различия с frontend prototype
 
-- отдельные Next.js frontend и Django + DRF backend;
-- modular monolith, PostgreSQL как primary datastore, Redis для cache;
-- Python 3.12, `uv`, Ruff/Ruff format, pytest;
-- REST API с prefix `/api/v1/`, Bearer JWT;
-- access token + refresh token в `httpOnly` cookie, refresh revocation/blacklist;
-- Telegram — основной auth flow, login/password — резервный; один User может
-  иметь оба способа входа;
-- роли `user`, `editor`, `admin`; подписка не является ролью;
-- `Subject → Section → Topic`;
-- `ContentBlock` — отдельная гибкая сущность с типом, хранимым в БД;
-- Flashcard и Quiz — отдельные interactive entities, не ContentBlock;
-- Markdown для текстового контента;
-- статусы контента `draft`, `generated`, `reviewed`, `published`;
-- optional sources, отдельная Media/File model и object storage;
-- topic progress, flashcard review state и quiz attempts принадлежат learning;
-- физическое удаление на MVP с согласованным каскадным поведением;
-- Django Admin как CMS, bulk import и bulk publish нужны;
-- backend сам проверяет paywall/access;
-- search MVP через PostgreSQL/Django `icontains` по названиям;
-- OpenAPI/Swagger, throttling, ограниченный CORS и технические логи;
-- Celery, payment provider и конкретный object storage provider остаются
-  unresolved/TBD.
-- Elasticsearch/OpenSearch, FSRS runtime, product event analytics, Sentry,
-  staging и user-facing AI/voice features явно deferred/out of MVP; это не
-  implementation blockers для первой backend foundation.
-
-## Draft и legacy, которые нельзя выдавать за реализацию
-
-`architecture/backend-structure.md` и `architecture/database.md` прямо имеют
-статус draft. Их полезные границы перенесены в target-документы, а их
-неразрешённые пункты сохранены в `open-questions.md`.
-
-Frontend prototype содержит локальные/временные решения:
-
-- email является обязательным полем его demo auth, тогда как backend decision
-  register фиксирует уникальный `username`, а email оставляет optional;
-- guest может временно видеть ограниченные части контента, тогда как accepted
-  MVP decision говорит «контент только для authenticated users»;
-- frontend хранит строковые demo IDs и прогресс в localStorage;
-- frontend использует формулу прогресса и порог 80%, но backend threshold и
-  точная domain-модель ещё не утверждены.
-
-Эти расхождения — не повод молча выбрать вариант. Они вынесены в
-`open-questions.md` и должны быть закрыты отдельными feature specs или
-решением владельца продукта.
+- demo auth во frontend использует email, тогда как backend baseline использует
+  unique username и optional email;
+- anonymous demo flow теперь является принятым продуктовым направлением, но его
+  точная backend-модель должна быть определена content feature spec;
+- frontend demo хранит progress в localStorage, тогда как настоящий progress
+  принадлежит `learning` и после auth хранится на backend;
+- frontend prototype может содержать временные формулы прогресса/пороги; они не
+  становятся backend contract без отдельного решения.
 
 ## Что следует считать source of truth
 
-1. Явно принятые product/architecture decisions в `medcore-docs`, прежде всего
-   `0004` и более новый `0005`.
-2. Этот каталог `docs/architecture/` — backend-specific architecture,
-   domain ownership и engineering conventions.
-3. Конкретная feature specification — точный scope и API/data contract
-   конкретной фичи.
-4. Existing code/tests — только после появления реализации и при условии, что
-   конфликт с docs эскалирован, а не принят молча.
+1. Более новые явно принятые decisions/ADR в `medcore-docs`.
+2. Backend-specific architecture в `docs/architecture/`.
+3. Approved implementation-ready feature spec.
+4. Existing code/tests как фактическая baseline-реализация; конфликт с более
+   высоким source of truth должен быть эскалирован, а не принят молча.
 
 ## Итог для следующего этапа
 
-Нельзя начинать реализацию с «починки существующего backend»: исправлять пока
-нечего. Следующая модель должна сначала создать project skeleton и закрыть
-foundation/auth contracts по feature specs, не притворяясь, что prototype или
-draft-документ уже является работающим API.
+Foundation повторно создавать не нужно. Следующий этап — reconciliation
+оставшихся open questions и написание feature specs, после чего coding-agent
+реализует auth/content/learning/subscriptions поверх уже существующего skeleton.
