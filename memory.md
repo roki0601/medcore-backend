@@ -31,3 +31,24 @@
 Product and architecture decisions are maintained in the neighboring
 `medcore-docs` repository. Accepted decisions there take precedence over
 implementation defaults.
+
+## Current agreed MVP contract
+
+- Registration/login uses verified Telegram Login Widget only.
+- `users.User` stores `telegram_id` directly as the unique auth identity and
+  stores a mutable unique application `username`; no separate Telegram identity
+  table is planned.
+- Auth uses Bearer access JWT plus non-rotating refresh JWT in an HttpOnly
+  cookie with server-side revocation.
+- Content follows `Subject -> Section -> Topic`; Topic access is
+  `demo/free/paid`, and demo markers may exist on child content.
+- Theory uses ordered Markdown/image/callout blocks. Flashcards and quizzes are
+  separate Topic-owned entities; cards use a simple review scheduler and quizzes
+  support multiple correct answers, partial scoring, retries and resumable
+  attempts.
+- External content is written synchronously through normal REST CRUD endpoints
+  using a separate integration key. There is no import job or Celery worker for
+  this flow.
+- Media is stored outside PostgreSQL and private/paid files are exposed through
+  short-lived signed URLs after backend access checks.
+- Subscriptions and payment semantics remain explicitly unresolved.

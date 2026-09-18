@@ -1,5 +1,12 @@
 # Authentication and access
 
+> Current overrides: read this document together with
+> `medcore-docs/decisions/0008-mvp-auth-content-and-integration-contract.md`.
+> For the current MVP, Telegram Login Widget is the only registration/login
+> flow, `telegram_id` and mutable application `username` live directly on
+> `users.User`, refresh tokens are non-rotating with revocation, and frontend
+> and backend use one production origin.
+
 ## Scope and vocabulary
 
 - Authentication отвечает, кто пользователь.
@@ -20,15 +27,9 @@ Telegram username.
 
 ### Login/password
 
-Login/password — резервный auth flow. Password хранится только через Django
-password hashing. Один User может одновременно иметь Telegram identity и
-password credential.
-
-Текущий backend decision register фиксирует unique `username` и optional email.
-Для password flow target-контрактом этого backend-пакета является вход по
-username; email остаётся optional и не является alias login. Frontend prototype
-использует email как обязательный demo login; это prototype-only расхождение,
-которое frontend должен адаптировать к backend contract.
+Password/email registration and login are deferred for the current Telegram-only
+MVP. Existing Django password fields are not a public authentication contract
+until a separate auth spec approves them.
 
 ## Anonymous access
 

@@ -4,13 +4,22 @@
 архитектуры. Локальные имена функций, ORM-оптимизации и прочие implementation
 details сюда не выносятся.
 
-## 1. Telegram protocol and account linking
+> Решения из grill-сессии 2026-09-18 зафиксированы в
+> `medcore-docs/decisions/0008-mvp-auth-content-and-integration-contract.md`.
+> В частности, Telegram-only auth, direct `User.telegram_id`, one-origin
+> hosting, synchronous Content API и отсутствие ImportJob/Celery больше не
+> являются открытыми вопросами. Ниже остаются только вопросы, не закрытые этой
+> сессией, прежде всего subscriptions/payment и будущие расширения.
+
+## 1. Telegram protocol and account linking (partially resolved)
 
 Нужно зафиксировать конкретный Telegram mechanism (Login Widget, Mini App
 init-data или другой), проверяемые claims, timestamp/replay policy, создание
 нового User, linking существующего password account и future unlink behavior.
 
-Без этого нельзя написать безопасный implementation-ready Telegram spec.
+Для текущего MVP выбран Telegram Login Widget; точные claims, timestamp/replay
+policy и backend verification должны быть раскрыты в auth spec. Linking и
+unlink отложены.
 
 ## API permission baseline and error contract
 

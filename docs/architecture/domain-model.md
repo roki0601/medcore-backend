@@ -9,7 +9,7 @@
 | Entity | Owning app | Lifecycle owner |
 |---|---|---|
 | User | `users` | account/auth services |
-| Telegram identity | `users` | auth identity service |
+| User.telegram_id | `users` | account/auth services |
 | Refresh token/session | `users` | token lifecycle service |
 | Subject | `content` | content CMS |
 | Section | `content` | content CMS |
@@ -40,7 +40,7 @@ Subject 1 ─── N Section 1 ─── N Topic
 
 Source 0..N ── M:N ── Topic / ContentBlock / Flashcard / QuizQuestion
 
-Flashcard 0..N ── 0..1 Topic
+Flashcard 0..N ── 1 Topic
 
 User 1 ─── 0..N UserTopicProgress ─── 1 Topic
 User 1 ─── 0..N FlashcardReview ───── 1 Flashcard
@@ -62,9 +62,9 @@ User 1 ─── 0..N RefreshToken/Session
 ### User and identities
 
 `User` — владелец аккаунта и всех пользовательских данных. Он поддерживает
-уникальный username, Django password hash, optional unique Telegram identity,
-optional email, role, active flag и timestamps. Telegram identity и password
-credential могут сосуществовать у одного User.
+уникальный mutable application username, unique `telegram_id`, role, active
+flag и timestamps. Отдельная Telegram identity table не вводится;
+password/email authentication отложены.
 
 Telegram payload не является User без backend verification.
 
@@ -107,15 +107,15 @@ direction. Полная version history не входит в MVP.
 
 ### Flashcard
 
-Flashcard — interactive content entity, не ContentBlock. Topic relation optional,
-Source relation optional. Self-rating и FSRS runtime не входят в MVP. Для
+Flashcard — interactive content entity, не ContentBlock. Topic relation
+обязательна, Source relation optional. Self-rating и FSRS runtime не входят в MVP. Для
 будущего FSRS допускается хранить current state (`next_review_at`,
 `last_reviewed_at`, `repetitions` или эквивалент).
 
 ### Quiz
 
-Quiz состоит из QuizQuestion и QuizAnswer. MVP использует single-choice с одним
-правильным ответом; ровно четыре варианта на уровне БД не фиксируются. Retake
+Quiz состоит из QuizQuestion и QuizAnswer. Вопрос может иметь один или несколько
+правильных ответов; ровно четыре варианта на уровне БД не фиксируются. Retake
 не ограничен, каждая попытка сохраняется, лучший score вычисляется из attempts.
 Timeout и глобальный pass threshold не вводятся.
 
