@@ -80,8 +80,8 @@ Backend foundation был смержен в `main` 2026-09-18. Поэтому н
 
 - `decisions/0004-mvp-decision-register.md` — исходный подробный реестр;
 - `decisions/0005-decision-register-audit.md` — аудит и правила приоритета;
-- `decisions/0006-anonymous-demo-content.md` — более новое решение о публичном
-  demo-контенте до авторизации;
+- `decisions/0006-anonymous-demo-content.md` — публичный demo-контент до auth;
+- `decisions/0007-content-access-model.md` — Topic access `demo/free/paid` и demo-preview;
 - `product/mvp.md`;
 - `architecture/*`;
 - `ai/context.md` и `AGENTS.md`.
@@ -94,8 +94,9 @@ demo IDs и локальная auth-имитация не являются backe
 
 - demo auth во frontend использует email, тогда как backend baseline использует
   unique username и optional email;
-- anonymous demo flow теперь является принятым продуктовым направлением, но его
-  точная backend-модель должна быть определена content feature spec;
+- anonymous demo flow принят; основной access boundary — Topic с
+  `demo/free/paid`, а content feature spec должна уточнить только конкретный
+  preview marker/API shape;
 - frontend demo хранит progress в localStorage, тогда как настоящий progress
   принадлежит `learning` и после auth хранится на backend;
 - frontend prototype может содержать временные формулы прогресса/пороги; они не
