@@ -190,8 +190,10 @@ user/system administration.
 3. product access policy — есть ли free/subscription/trial capability;
 4. domain invariant — допустима ли операция по состоянию сущности.
 
-`premium` не является ролью. Не помещать subscription checks в serializers или
-content models; policy вызывается явно на application boundary.
+`premium` не является ролью. Topic хранит только классификацию доступа
+`demo/free/paid`; entitlement checks выполняются через policy на application
+boundary, а не внутри content models или serializers. Каталог и безопасные
+metadata могут быть public; персональный learning state требует authentication.
 
 ## Transactions and side effects
 
