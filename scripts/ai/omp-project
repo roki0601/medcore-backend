@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PROJECT_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+cd "$PROJECT_ROOT"
+
+PROJECT_USER_BIN="/home/roki/.local/bin"
+if [[ -x "$PROJECT_USER_BIN/gh" ]]; then
+  export PATH="$PROJECT_USER_BIN:$PATH"
+fi
+
+exec omp \
+  --cwd "$PROJECT_ROOT" \
+  --extension "$PROJECT_ROOT/.omp/extensions/project-providers.ts" \
+  --extension "$PROJECT_ROOT/.omp/extensions/git-guards.ts" \
+  "$@"

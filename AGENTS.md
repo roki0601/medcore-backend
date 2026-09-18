@@ -117,3 +117,12 @@ If implementation reveals an architecture/spec mismatch, do not silently rewrite
 the docs. Report it first. After an approved decision, update the relevant
 architecture document/spec and keep the change focused. Do not create dozens of
 ADRs or duplicate `medcore-docs` content.
+
+## Project-local OMP orchestration
+
+Project-local OMP settings and agents live under `.omp/`; `PROJECT_STATE.md`
+tracks the orchestration state but does not override the source-of-truth rules
+above. Use `scripts/ai/omp-project` to activate the project config and Git
+guards. OMP agents must preserve user changes, keep implementation writers
+sequential, and escalate unresolved architecture/security/TBD decisions instead
+of inventing them.

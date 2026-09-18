@@ -1,0 +1,38 @@
+# Project-local OMP settings for MedCore.
+# Model identifiers are resolved from the existing user catalog; credentials stay global.
+modelRoleStorage: project
+
+modelRoles:
+  default: ufanet-local/Qwen3-Coder-Next-NVFP4
+  smol: ufanet-local/Qwen3-Coder-Next-NVFP4
+  task: ufanet-local/Qwen3-Coder-Next-NVFP4
+  commit: ufanet-local/Qwen3-Coder-Next-NVFP4
+  tiny: ufanet-local/Qwen3-Coder-Next-NVFP4
+
+  plan: openai-codex/gpt-5.6-luna:max
+  slow: openai-codex/gpt-5.6-luna:max
+  advisor: openai-codex/gpt-5.6-luna:high
+  vision: openai-codex/gpt-5.6-luna
+
+  architect: openrouter/deepseek/deepseek-v4.1-flash:max
+  senior_review: openrouter/deepseek/deepseek-v4.1-flash:max
+  escalation: openrouter/deepseek/deepseek-v4.1-flash:max
+
+# Advisors are opt-in to avoid doubling every ordinary coding turn.
+# Use --advisor for a session-wide Watchdog review.
+advisor:
+  enabled: false
+  syncBacklog: 1
+
+github:
+  enabled: true
+
+task:
+  isolation:
+    enabled: true
+    apply: true
+    merge: patch
+    commits: generic
+
+isolation:
+  backend: auto
