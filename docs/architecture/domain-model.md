@@ -78,6 +78,13 @@ Refresh token/session принадлежит User, имеет expiration и revo
 косвенно Subject. Учебные элементы внутри Topic optional: пустая тема остаётся
 валидной сущностью.
 
+Topic является основным content access boundary и имеет `access_level`:
+`demo`, `free` или `paid`. `demo` доступен anonymous users, `free` требует
+authentication, `paid` — authentication + entitlement. Каталог и безопасные
+metadata могут быть public без выдачи закрытого body/content. Дочерние элементы
+`free`/`paid` Topic могут иметь только ограниченный explicit demo-preview marker;
+полноценная независимая ACL/access policy на каждом child в MVP не вводится.
+
 Subject, Section и Topic имеют slug для user-facing URL. Slug генерируется из
 title, manual override разрешён, изменение после публикации разрешено на уровне
 product decision; redirect/history policy пока не определена.
@@ -144,7 +151,10 @@ progress. Best score отдельно не хранится.
 необходимости и timestamps. Роли и subscriptions независимы.
 
 Subscription policy отвечает за entitlement/capability. Content и Learning не
-читают поля Subscription напрямую.
+читают поля Subscription напрямую. Для `paid` Topic access decision идёт через
+единый policy boundary. Для MVP достаточно active entitlement; разные планы,
+trial и другие entitlement types могут расширить policy позже без изменения
+базового `demo/free/paid` контракта.
 
 ## Lifecycle rules
 
@@ -176,12 +186,14 @@ Subscription policy отвечает за entitlement/capability. Content и Lea
 - Source deletion removes links only;
 - timestamps are timezone-aware and persisted in UTC;
 - IDs use Django `BigAutoField`/BigInt direction;
+- Topic `access_level` принимает только `demo`, `free`, `paid`;
+- anonymous user не создаёт `UserTopicProgress`, `FlashcardReview` или `QuizAttempt`;
 - access is checked backend-side; frontend visibility is not a security boundary;
 - database constraints protect uniqueness even when two requests race.
 
 ## Deliberately unresolved
 
 Не зафиксированы здесь поля Subject/Section/Topic, slug uniqueness, exact quiz
-attempt answer shape, completion threshold, paywall granularity, payment
-semantics и storage provider. Полный список — в
+attempt answer shape, completion threshold, mapping конкретных Plan/entitlement
+к `paid` access, payment semantics и storage provider. Полный список — в
 [`open-questions.md`](open-questions.md).
