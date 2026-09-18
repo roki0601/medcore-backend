@@ -2,8 +2,8 @@
 
 ## Project role
 
-`medcore-backend` is the Django/DRF backend of MedCore. The repository is being
-built from an empty skeleton. Product and architecture decisions are documented;
+`medcore-backend` is the Django/DRF backend of MedCore. The backend foundation
+already exists and product features are implemented incrementally from approved specs. Product and architecture decisions are documented;
 coding agents implement approved specs and do not invent the system design while
 coding.
 
@@ -50,7 +50,7 @@ direction, API contract, risks and validation commands before editing.
   without an approved docs/decision update.
 - Keep `content` as the content owner and `learning` as the user-learning-state
   owner.
-- Keep subscription/paywall checks out of content models.
+- Keep subscription/paywall checks out of content models. Topic owns only the `demo/free/paid` access classification; entitlement decisions stay behind subscriptions policy.
 - Do not use Django signals for core business logic.
 - Do not add Repository/UnitOfWork/EventBus/CommandBus layers or generic utility
   packages without a concrete approved need.
