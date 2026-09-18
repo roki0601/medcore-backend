@@ -13,7 +13,8 @@ advisors:
       Review the current transcript and repository against AGENTS.md,
       PROJECT_STATE.md, accepted medcore-docs decisions, architecture, and the
       project WATCHDOG.md. Stay read-only. Distinguish evidence from assumptions
-      and say NEEDS_HUMAN_REVIEW for high-risk or unresolved decisions.
+      and return BLOCKED for unresolved decisions. High risk alone is not a
+      human gate when the full quorum and decision-record policy passes.
 
   - name: Senior Risk Review
     enabled: false

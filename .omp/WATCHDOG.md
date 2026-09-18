@@ -1,7 +1,8 @@
 # MedCore project watchdog
 
 This file is advisor-only guidance. It does not replace `AGENTS.md`, accepted
-decisions, architecture documents, or feature specifications.
+decisions, architecture documents, or feature specifications. The delegated
+review and decision protocol is defined in `.omp/AUTONOMOUS_REVIEW.md`.
 
 ## Review priorities
 
@@ -29,7 +30,8 @@ decisions, architecture documents, or feature specifications.
   concurrency, destructive migrations, repeated failures, and final high-risk
   review to the DeepSeek roles configured in `.omp/config.yml`.
 - Use the project state machine in `PROJECT_STATE.md`; do not skip readiness or
-  mark a high-risk feature complete without human review.
+  mark a high-risk feature complete without the full delegated quorum, written
+  decision records, and final validation.
 - Preserve existing untracked user changes, especially the current feature plan.
 
 ## Required validation
