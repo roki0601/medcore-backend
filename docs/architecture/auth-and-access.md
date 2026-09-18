@@ -36,11 +36,17 @@ username; email остаётся optional и не является alias login. 
 
 - healthcheck;
 - auth entry points, которые по смыслу работают до входа;
-- OpenAPI только если deployment policy разрешает его публичность.
+- OpenAPI только если deployment policy разрешает его публичность;
+- ограниченный демонстрационный учебный контент, явно разрешённый content spec.
 
-Accepted MVP direction говорит, что учебный контент доступен только
-authenticated users. Frontend prototype показывает ограниченный guest flow, но
-prototype не расширяет backend contract: anonymous content requests запрещены.
+ADR 0006 разрешает anonymous user увидеть ограниченный demo-контент до
+регистрации/входа, например пример теории, карточек или тестового сценария.
+Обычный каталог, полный учебный контент и user-specific learning state остаются
+за authentication boundary.
+
+Точная техническая модель demo-доступа (flag, curated selection, отдельный
+endpoint или эквивалент) должна быть определена content feature spec и не
+выбирается coding-agent самостоятельно.
 
 ## Roles
 
@@ -61,7 +67,7 @@ policy. Editor/admin role сама по себе не должна незаме�
 - Editor не управляет пользователями, ролями, refresh sessions или системными
   настройками.
 - Admin permissions не должны даваться обычному editor через frontend flag.
-- Published content read policy применяется после authentication и access check.
+- Обычный published content read policy применяется после authentication и access check; исключение — только явно разрешённый anonymous demo scope.
 - User-facing API не должен публиковать `draft`/`generated`/`reviewed` content,
   пока отдельная content spec явно не определит preview capability. Это default
   security boundary, а не решение о CMS preview UX.
@@ -122,9 +128,9 @@ DRF permission classes подходят для coarse role/identity checks. Reso
 и paywall checks выполняются через application service/policy boundary, а не
 только в frontend и не в model `save()`. Выбор global `IsAuthenticated` или
 endpoint-specific default остаётся TBD; до его закрытия каждая feature spec
-обязана явно указать permission для каждого endpoint. Accepted baseline для
-учебного контента — authentication required; healthcheck и auth entry points
-явно public.
+обязана явно указать permission для каждого endpoint. Baseline для полного
+учебного контента — authentication required; healthcheck, auth entry points и
+явно определённый demo scope могут быть public.
 
 ## Security requirements
 
