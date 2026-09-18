@@ -44,9 +44,11 @@ ADR 0006 разрешает anonymous user увидеть ограниченны
 Обычный каталог, полный учебный контент и user-specific learning state остаются
 за authentication boundary.
 
-Точная техническая модель demo-доступа (flag, curated selection, отдельный
-endpoint или эквивалент) должна быть определена content feature spec и не
-выбирается coding-agent самостоятельно.
+Основная access model теперь зафиксирована ADR 0007: Topic имеет `access_level`
+`demo`, `free` или `paid`. `demo` доступен anonymous users, `free` требует auth,
+`paid` требует auth + entitlement. Каталог и безопасные metadata могут быть
+public. Внутри `free`/`paid` Topic отдельные дочерние элементы могут быть явно
+отмечены как demo preview; точное имя поля и API shape определяет content spec.
 
 ## Roles
 
@@ -67,7 +69,7 @@ policy. Editor/admin role сама по себе не должна незаме�
 - Editor не управляет пользователями, ролями, refresh sessions или системными
   настройками.
 - Admin permissions не должны даваться обычному editor через frontend flag.
-- Обычный published content read policy применяется после authentication и access check; исключение — только явно разрешённый anonymous demo scope.
+- Published Topic/content read policy следует Topic `access_level`: `demo` public, `free` authenticated, `paid` authenticated + entitlement. Child-level demo preview — только явное исключение.
 - User-facing API не должен публиковать `draft`/`generated`/`reviewed` content,
   пока отдельная content spec явно не определит preview capability. Это default
   security boundary, а не решение о CMS preview UX.
@@ -128,9 +130,9 @@ DRF permission classes подходят для coarse role/identity checks. Reso
 и paywall checks выполняются через application service/policy boundary, а не
 только в frontend и не в model `save()`. Выбор global `IsAuthenticated` или
 endpoint-specific default остаётся TBD; до его закрытия каждая feature spec
-обязана явно указать permission для каждого endpoint. Baseline для полного
-учебного контента — authentication required; healthcheck, auth entry points и
-явно определённый demo scope могут быть public.
+обязана явно указать permission для каждого endpoint. Topic-level access
+определяется `demo/free/paid`; catalog metadata может быть public, а персональный
+learning state всегда требует authentication.
 
 ## Security requirements
 
