@@ -113,14 +113,22 @@ cards and best quiz score.
 
 ## 10. Paywall and subscriptions
 
-Нужно определить:
+Базовая content access model уже принята:
 
-- paywall granularity (Subject, Section, Topic, block, quiz/card или capability);
-- representation of `is_free`/entitlement;
+- основной boundary — Topic;
+- `access_level = demo | free | paid`;
+- `demo` доступен anonymous;
+- `free` требует authentication;
+- `paid` требует authentication + entitlement;
+- отдельные child elements внутри `free`/`paid` Topic могут быть explicit demo preview;
+- сложная ACL/inheritance model в MVP не вводится.
+
+Остаётся определить:
+
 - Subscription status machine and overlap rules;
+- как конкретные Plan/Tariff дают entitlement к `paid` content;
 - trial eligibility/expiration;
-- Plan/Subscription retention, cancellation, expiry and account-deletion
-  behavior;
+- Plan/Subscription retention, cancellation, expiry and account-deletion behavior;
 - whether editor/admin bypasses paid access;
 - payment provider and webhook boundary.
 
