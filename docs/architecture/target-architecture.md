@@ -116,8 +116,9 @@ Access composition выполняется только application service на 
 domain: он получает resource capability из своего domain selector, вызывает
 публичную `subscriptions.policy`, а затем передаёт selector-у только готовый
 access context/allowed result. Selector не импортирует Subscription models или
-policy напрямую; `subscriptions` не импортирует `content`/`learning`. Точный
-granularity paywall остаётся вопросом продукта.
+policy напрямую; `subscriptions` не импортирует `content`/`learning`. Для MVP
+основной access boundary — Topic с `access_level = demo | free | paid`;
+child-level исключение допускается только для явно отмеченного demo preview.
 
 ## Responsibilities by layer
 
