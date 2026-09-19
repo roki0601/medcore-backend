@@ -79,7 +79,8 @@ tests, or modifications there. Run `git status --short --branch` first only in
 the two in-scope repositories. A dirty worktree, missing upstream, or diverged
 branch is a blocker to report to the owner. Do not bypass it with automatic
 stash, reset, checkout, merge, or rebase. Record the resulting branches and
-commit HEADs in the task report.
+commit HEADs in the task report. Generic three-repository wording in sibling
+docs instructions is contextual and must not be executed by backend OMP.
 
 Git safety guards are active when OMP is started through the wrapper. They block
 direct/force pushes outside an explicit feature-style branch, merges, history

@@ -35,6 +35,9 @@ worktree, tests, or modifications there. First check
 worktree, missing upstream, or diverged branch is a blocker: notify the owner
 and stop. Do not use stash, reset, checkout, merge, or rebase automatically to
 bypass it. Record the branches and commit HEADs after both fast-forward pulls.
+If the sibling `medcore-docs/AGENTS.md` repeats a generic three-repository
+preflight, read it for product context but follow this local operational scope
+and do not execute its frontend commands.
 
 Do not skip a state or infer approval from an existing draft. The first feature
 is `specs/001-telegram-auth-account`; later order is 002, 004, 003. Keep

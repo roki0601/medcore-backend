@@ -45,6 +45,10 @@ git -C medcore-backend pull --ff-only
 
 `medcore-frontend` полностью вне scope backend OMP: не выполняй там `git
 status`, `git pull`, checkout, branch, worktree, тесты или любые изменения.
+Если соседний `medcore-docs/AGENTS.md` или исторический отчёт содержит общий
+preflight с frontend, прочитай его для контекста, но не исполняй эти frontend
+команды: это локальное правило scope является operational authority для
+backend OMP.
 Перед pull проверь `git status --short --branch` только в двух репозиториях
 scope. Если рабочее дерево не чистое, upstream отсутствует или ветки разошлись,
 остановись и сообщи блокер владельцу. Не применяй для продолжения `stash`,
