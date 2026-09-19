@@ -1,6 +1,6 @@
 ---
 name: spec-reviewer
-description: Read-only Qwen reviewer for specification completeness and implementation readiness
+description: Read-only DeepSeek reviewer for specification completeness and implementation readiness
 tools: [read, grep, glob, yield]
 spawns: []
 model: ["@task"]

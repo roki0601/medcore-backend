@@ -6,35 +6,70 @@ implementation blockers, and continue without waiting for an interactive user
 approval. It does not authorize silent changes to accepted decisions or
 architecture.
 
-## Review quorum
+## Normal execution
 
-The manager must obtain independent reviews from all three roles before moving
-past `SPEC_REVIEW` or accepting a decision that resolves a blocker:
+DeepSeek V4.1 Flash is the primary model for the manager, planning, and
+implementation roles (`@plan` and `@task`). The manager follows the project
+state machine and source-of-truth rules directly; it does not create a
+multi-model quorum for every feature or ordinary coding turn.
 
-1. `spec-reviewer` — Qwen via `@task`: completeness, acceptance criteria,
-   boundaries, testability, and implementation readiness.
-2. `watchdog` — Luna via `@advisor`: repository policy, state-machine,
-   source-of-truth, scope, and security checks.
-3. `architect` — DeepSeek via `@architect`: domain ownership, API/auth/
-   permission semantics, migrations, transactions, concurrency, and operational
-   risk.
+The Luna advisor is not attached to the session. Do not start the project
+wrapper with `--advisor`: that mode reviews every turn and recreates the
+latency/cost problem this policy is intended to avoid. `smol`/`tiny` may remain
+on the local Qwen endpoint for lightweight title/helper work, but they are not
+implementation or review authorities.
 
-The manager's own conclusion does not count as a fourth vote. Every reviewer
-reads the authoritative material independently before seeing the other reviews.
+## Implementation and validation cadence
+
+The implementation worker completes one coherent approved task before running
+the normal validation suite. It must not run Ruff or pytest after every file,
+edit, or small refactor. During implementation it may inspect code and existing
+tests, but validation is intentionally batched:
+
+1. finish the task's implementation and tests;
+2. run the narrow relevant formatter/linter/test checks once;
+3. fix failures locally, rerunning only the failed check while converging;
+4. after the task is coherent, run the required project checks once and report
+   their exact results.
+
+A first ordinary lint or test failure is not a Luna escalation. The manager
+keeps the fix loop local unless the same signature persists after two concrete
+attempts or the evidence reveals a deeper contract/problem.
+
+## Luna escalation
+
+The manager invokes the read-only `watchdog` (`@advisor`) only when at least one
+objective trigger is present:
+
+1. the same test/check fails with the same signature after two concrete
+   attempts;
+2. two attempted fixes produce no new evidence or the agent starts repeating
+   the same investigation;
+3. the agent reports serious uncertainty or a blocker;
+4. accepted decisions, architecture, and the feature spec disagree;
+5. a security/auth/permission/migration/transaction/concurrency or destructive
+   change needs a second opinion before proceeding.
+
+One escalation receives a compact packet: symptom, attempts, exact evidence,
+the decision needed, and the relevant paths. Luna stays read-only and returns
+`RESOLVED` with a source-backed recommendation or `BLOCKED` with the exact
+unresolved conflict. The manager must not invoke Luna for routine progress,
+ordinary review, every turn, or the first test/lint failure. Do not repeat the
+same escalation without new evidence; at most two bounded challenge rounds are
+allowed for one incident.
 
 ## Blocker deliberation
 
-When a reviewer reports a blocker:
+When the primary run reports a blocker:
 
 1. The manager extracts the exact question and the minimum relevant evidence.
-2. All reviewers read the applicable `AGENTS.md`, accepted decisions,
+2. The manager reads the applicable `AGENTS.md`, accepted decisions,
    architecture documents, complete feature spec, related specs, current code,
    and tests.
-3. The manager requests an independent proposed resolution from each reviewer.
-4. The manager shares the competing findings, asks each reviewer to challenge
-   the alternatives, and repeats this for at most three rounds.
-5. A blocker is resolved only when all three reviewers converge on the same
-   evidence-backed decision and no reviewer leaves a substantive dissent.
+3. If an escalation trigger is present, the manager sends the compact packet to
+   Luna and asks for one independent proposed resolution.
+4. The manager applies only a source-backed resolution. If the evidence still
+   conflicts after at most two bounded rounds, the state is `BLOCKED`.
 
 Models may derive a decision from project evidence and choose the smallest,
 least-risk implementation that preserves the documented contract. They must
@@ -43,14 +78,14 @@ invariant, or treat an absent dependency contract as present. An irreconcilable
 conflict between authoritative sources remains a hard `BLOCKED` result and is
 recorded for later review; the manager must not hide it by guessing.
 
-High risk by itself is not a human gate. Auth, account deletion, permissions,
-migrations, and other high-risk changes require the full quorum plus a written
-decision record and a successful final DeepSeek review.
+High risk by itself is not a human gate. High-risk work gets a Luna escalation
+when one of the objective triggers above is present; it does not get a
+permanent advisor or an automatic full quorum.
 
 ## Decision records
 
-Every resolved blocker or material autonomous interpretation is recorded before
-the workflow advances:
+Every Luna escalation, resolved blocker, or material autonomous interpretation
+is recorded before the workflow advances:
 
 ```text
 .omp/decisions/YYYY-MM-DD-<feature>-<short-slug>.md
@@ -60,7 +95,8 @@ The record must contain:
 
 - the question/blocker and affected workflow state;
 - source paths and line references used as evidence;
-- each model's initial finding and the deliberation/rebuttal;
+- DeepSeek's finding, Luna's escalation verdict when invoked, and the
+  deliberation/rebuttal;
 - the final decision, rejected alternatives, and residual risk;
 - the exact state transition and validation/rollback consequence;
 - model roles, model identifiers, and UTC timestamp.
@@ -83,3 +119,13 @@ The report includes the decision-record links, branch/commit/PR, files changed,
 exact checks and results, reviewer verdicts, unresolved risks, and the next
 action. It must not contain credentials, JWTs, cookies, Telegram secrets, or raw
 sensitive payloads.
+
+## Delivery boundary
+
+The manager is allowed to perform the mechanical delivery sequence after the
+implementation and checks are complete: commit intended files, push the
+feature-style branch, and create or update a GitHub PR whose body contains the
+implementation summary and evidence. Git guards continue to block direct or
+force pushes to protected branches, merge/auto-merge, destructive working-tree
+operations, and staged secrets. Human review and merge remain outside the
+manager's authority.

@@ -9,8 +9,12 @@ if [[ -x "$PROJECT_USER_BIN/gh" ]]; then
   export PATH="$PROJECT_USER_BIN:$PATH"
 fi
 
+TELEGRAM_ENV_FILE="${OMP_TELEGRAM_ENV_FILE:-${XDG_CONFIG_HOME:-$HOME/.config}/medcore/omp-telegram.env}"
+export OMP_TELEGRAM_ENV_FILE="$TELEGRAM_ENV_FILE"
+
 exec omp \
   --cwd "$PROJECT_ROOT" \
   --extension "$PROJECT_ROOT/.omp/extensions/project-providers.ts" \
   --extension "$PROJECT_ROOT/.omp/extensions/git-guards.ts" \
+  --extension "$PROJECT_ROOT/.omp/extensions/telegram-notifications.mjs" \
   "$@"

@@ -1,24 +1,25 @@
 instructions: |
-  Review MedCore work as a passive, read-only watchdog. Give concrete findings
-  with file paths and evidence. Raise a blocker for source-of-truth violations,
-  silent TBD decisions, security/auth/paywall boundary violations, destructive
-  migration behavior, or failed validation being reported as success.
+  Review an explicit MedCore escalation as a read-only watchdog. Give concrete
+  findings with file paths and evidence. Raise a blocker for source-of-truth
+  violations, silent TBD decisions, security/auth/paywall boundary violations,
+  destructive migration behavior, or failed validation being reported as
+  success. Do not review every ordinary turn.
 
 advisors:
   - name: MedCore Watchdog
-    enabled: true
-    model: openai-codex/gpt-5.6-luna:high
+    enabled: false
+    model: openai-codex/gpt-5.6-luna
     tools: [read, grep, glob]
     instructions: |
-      Review the current transcript and repository against AGENTS.md,
-      PROJECT_STATE.md, accepted medcore-docs decisions, architecture, and the
-      project WATCHDOG.md. Stay read-only. Distinguish evidence from assumptions
-      and return BLOCKED for unresolved decisions. High risk alone is not a
-      human gate when the full quorum and decision-record policy passes.
+      Review an explicit escalation packet and the minimum relevant repository
+      context against AGENTS.md, PROJECT_STATE.md, accepted medcore-docs
+      decisions, architecture, and the project WATCHDOG.md. Stay read-only.
+      Distinguish evidence from assumptions and return RESOLVED or BLOCKED.
+      Do not run as a standing per-turn advisor.
 
   - name: Senior Risk Review
     enabled: false
-    model: openrouter/deepseek/deepseek-v4.1-flash:max
+    model: openrouter/deepseek/deepseek-v4.1-flash
     tools: [read, grep, glob]
     instructions: |
       Opt-in reviewer for high-risk architecture, security, auth, entitlement,

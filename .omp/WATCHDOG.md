@@ -24,14 +24,13 @@ review and decision protocol is defined in `.omp/AUTONOMOUS_REVIEW.md`.
 
 ## Orchestration policy
 
-- Keep implementation writers sequential: one Qwen worker at a time.
-- Use Luna for planning, decomposition, coordination, and ordinary review.
-- Escalate architecture, security, auth, subscriptions/paywall, transactions,
-  concurrency, destructive migrations, repeated failures, and final high-risk
-  review to the DeepSeek roles configured in `.omp/config.yml`.
+- Keep implementation writers sequential: one DeepSeek worker at a time.
+- Use DeepSeek for planning, decomposition, coordination, and ordinary review.
+- Keep Luna detached from ordinary turns. Invoke the read-only Luna watchdog
+  only for the objective escalation triggers in `.omp/AUTONOMOUS_REVIEW.md`.
 - Use the project state machine in `PROJECT_STATE.md`; do not skip readiness or
-  mark a high-risk feature complete without the full delegated quorum, written
-  decision records, and final validation.
+  mark a feature complete without written decision records when an escalation
+  occurred and final validation.
 - Preserve existing untracked user changes, especially the current feature plan.
 
 ## Required validation

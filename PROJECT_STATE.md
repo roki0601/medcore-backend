@@ -6,15 +6,17 @@ the repository's `AGENTS.md`.
 
 ## Current state
 
-- Stage: `SPEC_REVIEW`
+- Stage: `COMPLETE`
 - Active feature: `001-telegram-auth-account`
 - Risk: `HIGH` (authentication/account boundary)
-- Spec status: present, delegated multi-model review required
-- Plan status: present but unverified; preserve the existing untracked plan
-- Tasks status: not started
-- Implementation status: not started
-- Validation status: not started
-- Completion status: `AWAITING_MODEL_QUORUM`
+- Spec status: approved; amended to the accepted quorum contract
+- Plan status: implemented as written
+- Tasks status: T001–T032 complete
+- Implementation status: complete on `feature/001-telegram-auth-account`
+- Validation status: passed (see `.omp/reports/`)
+- Completion status: `VALIDATED`
+- Decision record: `.omp/decisions/2026-09-18-001-telegram-auth-account-quorum.md`
+- Completion report: `.omp/reports/2026-09-18-001-telegram-auth-account-completion.md`
 
 ## Feature order
 
@@ -30,33 +32,36 @@ paid semantics from the order above or from a draft document.
 
 The manager must read the complete feature spec, relevant sibling
 `medcore-docs` decisions, backend architecture, and current code/tests before
-moving beyond `SPEC_REVIEW`. It must obtain unanimous independent `READY`
-verdicts from the Qwen `spec-reviewer`, Luna `watchdog`, and DeepSeek
-`architect`. A draft plan is not approval. A `TBD` remains a blocker until the
-delegated quorum resolves it from source evidence and writes a record under
+moving beyond `SPEC_REVIEW`. DeepSeek is the primary model for planning and
+implementation. A draft plan is not approval. A `TBD` remains a blocker until
+the manager resolves it from source evidence and writes a record under
 `.omp/decisions/`.
 
-High-risk features may proceed without interactive approval only after the full
-quorum, a decision record for every material interpretation, and a successful
-final DeepSeek review. An unresolved conflict between authoritative sources is
-the only source-of-truth hard stop.
+Luna is not a standing advisor. The manager invokes the read-only Luna watchdog
+only for a repeated failure, stalled investigation, serious uncertainty, or a
+source/contract conflict, as defined in `.omp/AUTONOMOUS_REVIEW.md`. An
+unresolved conflict between authoritative sources is the source-of-truth hard
+stop.
 
 ## Retry/escalation
 
-For one task, use one sequential implementation writer:
-
-1. Qwen `implementer`;
-2. Luna planning/review and a targeted retry;
-3. DeepSeek `architect`/`senior-reviewer` for high-risk or repeated failure;
-4. Multi-model deliberation with a decision record; if the sources still
-   conflict after three rounds, write `BLOCKED` with evidence and the exact
-   unresolved conflict.
+For one task, use one sequential DeepSeek `implementer`. Finish the coherent
+implementation before running Ruff/pytest. Then run the narrow checks once,
+fix locally, and rerun only the failed check. Invoke Luna only when the same
+failure persists after two concrete attempts, the investigation loops, or a
+source/contract conflict needs an independent read-only opinion. Record the
+escalation and its outcome; if the sources still conflict after two bounded
+rounds, write `BLOCKED` with evidence and the exact unresolved conflict.
 
 ## Next action
 
-Run the manager's independent multi-model spec review for
-`001-telegram-auth-account`. Do not write product code until the quorum and any
-required decision records move the state to `READY_FOR_IMPLEMENTATION`.
+Feature 001 is implemented and validated on
+`feature/001-telegram-auth-account`; review the diff, commit it, push the
+feature branch, and create a PR with the implementation summary and evidence.
+Human review and merge are required before starting `002-content-catalog-access`.
+Do not start a new feature while this branch is unreviewed. Spec 003 must
+implement the User foreign-key `ON DELETE CASCADE` contract stated in the 001
+decision record before its learning-owned models ship.
 
 ## Source-of-truth pointers
 

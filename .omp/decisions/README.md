@@ -1,9 +1,8 @@
 # Autonomous decision records
 
-The OMP manager stores evidence-backed decisions made by the delegated
-multi-model quorum here. These records are an audit trail for unattended work;
-they do not replace accepted decisions in `../medcore-docs` or the backend
-architecture documents.
+The OMP manager stores evidence-backed decisions and Luna escalation records
+here. These records are an audit trail for unattended work; they do not replace
+accepted decisions in `../medcore-docs` or the backend architecture documents.
 
 Use one Markdown file per material decision:
 

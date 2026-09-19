@@ -15,11 +15,20 @@ while IFS= read -r path; do
   esac
 done <<< "$staged_names"
 
-secret_pattern="-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----|\\b(api[_-]?key|access[_-]?token|client[_-]?secret|password|secret)\\s*[:=]\\s*[\\\"']?[A-Za-z0-9_./+=-]{12,}"
-staged_diff="$(git diff --cached --binary --no-ext-diff | sed 's/UFANET_LOCAL_API_KEY/[PROJECT_API_KEY_PLACEHOLDER]/g')"
-if rg -q -i -- "$secret_pattern" <<< "$staged_diff"; then
-  echo "staged diff contains a secret-like value" >&2
-  exit 1
-fi
+secret_pattern="-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----|AKIA[0-9A-Z]{16}|gh[opurs]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,}|xox[baprs]-[A-Za-z0-9-]{20,}|sk-[A-Za-z0-9_-]{20,}|AIza[0-9A-Za-z_-]{20,}|[0-9]{8,12}:[A-Za-z0-9_-]{30,}|eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}"
+
+# Inspect only added text. Searching the whole unified diff makes normal source
+# code such as `access_token = response[...]` look like a credential and also
+# scans removed lines that will not be committed.
+while IFS= read -r path; do
+  [[ -z "$path" ]] && continue
+
+  added_lines="$(git diff --cached --unified=0 --no-ext-diff -- "$path" \
+    | sed -e '/^+++/d' -e '/^+/s/^+//p')"
+  if rg -q -i -- "$secret_pattern" <<< "$added_lines"; then
+    echo "staged diff contains a high-confidence secret-like value: $path" >&2
+    exit 1
+  fi
+done <<< "$staged_names"
 
 exit 0
