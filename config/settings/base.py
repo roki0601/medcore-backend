@@ -96,6 +96,11 @@ MEDIA_ACCESS_TOKEN_SALT = "medcore.media.access"
 MEDIA_ACCESS_POLICY_PROVIDER = "apps.content.media_policy.decide_media_access"
 MEDIA_DELETE_GUARD_PROVIDER = "apps.content.media_policy.guard_media_deletion"
 
+# Simple flashcard ladder (days) for feature 003: ``know`` advances one step and
+# stays on the last one, ``repeat`` resets to the first. Values are project
+# defaults, not environment configuration.
+LEARNING_FLASHCARD_INTERVALS = (1, 3, 7, 14, 30)
+
 THROTTLE_RATES = {
     "telegram_login": "10/min",
     "telegram_login_user": "5/min",
@@ -109,6 +114,10 @@ THROTTLE_RATES = {
     "media_upload": "30/min",
     "media_metadata": "60/min",
     "media_access": "60/min",
+    "learning_read": "120/min",
+    "learning_progress": "60/min",
+    "learning_review": "60/min",
+    "learning_attempt": "60/min",
 }
 
 

@@ -1,6 +1,7 @@
 # Spec: Learning state, flashcard review and quizzes
 
-Status: Draft
+Status: Approved for implementation (delegated review
+`.omp/decisions/2026-09-19-003-learning-state-review.md`)
 
 Owning app: learning
 
@@ -9,18 +10,20 @@ Risk: High
 Related architecture: docs/architecture/domain-model.md,
 docs/architecture/auth-and-access.md
 
-Related decisions: medcore-docs/decisions/0008-mvp-auth-content-and-integration-contract.md
+Related decisions: medcore-docs/decisions/0008-mvp-auth-content-and-integration-contract.md,
+medcore-docs/decisions/0004-mvp-decision-register.md,
+`.omp/decisions/2026-09-19-003-learning-state-review.md`
 
 ## Goal
 
 Сохранить персональный прогресс пользователя по темам, дать ручное завершение
-теоретических секций, простое планирование повторения карточек и полноценные
+блоков теории темы, простое планирование повторения карточек и полноценные
 повторяемые quiz attempts с несколькими правильными ответами.
 
 ## Scope
 
 - Authenticated Topic progress.
-- Explicit section completion.
+- Explicit theory-block completion.
 - Topic progress status and theory percentage.
 - FlashcardReview current state per user/card.
 - Actions «Знаю» and «Повторить» with simple schedule.
@@ -39,6 +42,12 @@ Related decisions: medcore-docs/decisions/0008-mvp-auth-content-and-integration-
 - Timeout.
 - Subscription/payment logic.
 - Global aggregate score combining theory, cards and quizzes.
+- Score-based automatic topic completion: the decision register accepts it but leaves its
+  threshold TBD, so this feature ships manual completion only and the threshold stays an
+  owner decision (decision record §Q2.7).
+- A pass/fail flag on an attempt: register item 65 says no global pass percentage is
+  introduced, so submit returns only `score_percent` and the per-question results; the
+  threshold is part of the same open owner decision (post-analysis correction 1).
 - AI generation of questions.
 - Frontend state implementation.
 
@@ -55,14 +64,16 @@ Related decisions: medcore-docs/decisions/0008-mvp-auth-content-and-integration-
 
 ### User Story 1 — theory progress (P1)
 
-Авторизованный пользователь отмечает секции темы изученными и видит прогресс.
+Авторизованный пользователь отмечает блоки теории темы изученными и видит
+прогресс.
 
 Acceptance scenarios:
 
-1. Given authenticated user and accessible Topic, when user marks a section
-   complete, then one user-owned section state is persisted.
-2. Given completed sections and total sections, when progress is requested, then
-   theory percentage equals completed sections divided by total sections.
+1. Given authenticated user and accessible Topic, when user marks a theory block
+   complete, then one user-owned block state is persisted.
+2. Given completed theory blocks and total theory blocks, when progress is
+   requested, then theory percentage equals completed blocks divided by total
+   blocks.
 3. Given anonymous demo reading, when no access token exists, then no progress row
    is created.
 
@@ -100,12 +111,12 @@ Acceptance scenarios:
 ## Entities
 
 - UserTopicProgress: current progress for User and Topic.
-- UserTopicSectionProgress: explicit completion state for one User, Topic and
-  Section.
+- UserTopicBlockProgress: explicit completion state for one User, Topic and
+  theory ContentBlock.
 - FlashcardReview: current scheduler state for one User and Flashcard.
 - QuizAttempt: one started/submitted attempt for User and Quiz.
-- Content entities Topic, Section, Flashcard, Quiz, Question and Answer are
-  owned by content; learning references them and does not author them.
+- Content entities Topic, Section, ContentBlock, Flashcard, Quiz, Question and
+  Answer are owned by content; learning references them and does not author them.
 
 ## Business rules
 
@@ -113,11 +124,11 @@ Acceptance scenarios:
 2. User can access learning state only for own User.
 3. Learning endpoints re-check Topic access before exposing or mutating state.
 4. Topic progress statuses are not_started, learning and learned.
-5. First section/card/quiz action transitions topic progress to learning.
-6. Explicit completion of all available theory sections makes theory percentage
-   100 percent; no cross-mode aggregate is exposed by this feature.
-7. A Topic can be empty; percentage for zero sections is 0 and cannot be marked
-   complete through a nonexistent section.
+5. First theory-block/card/quiz action transitions topic progress to learning.
+6. Explicit completion of all available theory blocks makes theory percentage 100
+   percent; no cross-mode aggregate is exposed by this feature.
+7. A Topic can be empty; percentage for zero theory blocks is 0 and cannot be
+   marked complete through a nonexistent block.
 8. Flashcard belongs to exactly one Topic.
 9. One current FlashcardReview exists per User and Flashcard.
 10. Repeat and Know update the current review row rather than append history.
@@ -136,19 +147,27 @@ Acceptance scenarios:
     max(0, (correct_selected - incorrect_selected) / correct_answer_count).
     Quiz score is the arithmetic average of question scores, represented as a
     percentage rounded to the nearest whole number.
-21. Pass threshold is 80 percent for attempt result display; pass status does
-    not by itself complete Topic progress in this feature.
+21. No pass threshold is applied in this feature: the register states that no
+    global pass percentage is introduced (item 65) and the backend source of
+    truth for a threshold is not chosen, so submit returns `score_percent` and
+    the per-question results without a pass flag. A threshold gates both a
+    pass/fail display and score-based automatic completion and stays an open
+    owner decision (decision record §Q2.7 and post-analysis correction 1).
 22. Best score is derived from completed attempts and is not stored separately.
 
 ## Invariants
 
 - Unique UserTopicProgress per User and Topic.
-- Unique UserTopicSectionProgress per User and Section within a Topic.
+- Unique UserTopicBlockProgress per User and theory block; the block belongs to
+  the Topic of the row.
 - Unique current FlashcardReview per User and Flashcard.
 - At most one active QuizAttempt per User and Quiz.
 - Completed QuizAttempt cannot be mutated.
 - Anonymous requests never create or update learning state.
-- A learning row cannot reference an inaccessible or deleted content object.
+- A learning row never references a deleted content object: every content FK is
+  `ON DELETE CASCADE`. A row whose Topic becomes inaccessible (for example
+  `free` → `paid` without entitlement) is not exposed and is re-checked on every
+  request; no cross-domain cleanup is performed.
 
 ## Data model
 
@@ -162,14 +181,17 @@ Acceptance scenarios:
 - completed_at: nullable UTC timestamp.
 - created_at, updated_at: UTC timestamps.
 
-### UserTopicSectionProgress
+### UserTopicBlockProgress
 
-- user: required User foreign key.
-- topic: required Topic foreign key.
-- section: required Section foreign key.
+- user: required User foreign key, `ON DELETE CASCADE`.
+- block: required ContentBlock foreign key, `ON DELETE CASCADE`. The Topic is
+  derived from the block (`block.topic`), so a content re-parenting can never
+  leave a stale `(topic, block)` pair; the route still rejects a URL topic that
+  differs from `block.topic_id` with 404.
 - is_complete: boolean.
 - completed_at: nullable UTC timestamp.
-- unique user/topic/section.
+- created_at, updated_at: UTC timestamps.
+- unique user/block.
 
 ### FlashcardReview
 
@@ -186,14 +208,20 @@ Acceptance scenarios:
 - user: required User foreign key.
 - quiz: required Quiz foreign key.
 - status: active or submitted.
-- answers_state: compact current selected-answer state for resumable active
-  attempts and final submitted result.
+- answers_state: compact current selection for resumable active attempts; it
+  contains answer IDs only, `{"selected_answer_ids": [int, ...]}`.
+- question_ids: JSON list of the QuizQuestion IDs frozen when the attempt starts;
+  an attempt always grades this set.
+- results: null while the attempt is active; after submit the frozen graded
+  breakdown, `[{"question_id", "selected_answer_ids", "correct_answer_ids",
+  "score_percent"}]`, containing IDs and numeric scores only.
 - score_percent: nullable until submitted.
-- passed: nullable until submitted.
 - started_at, submitted_at, updated_at: UTC timestamps.
 
-The exact serialized answers_state shape must be documented in the API schema
-and must contain only answer IDs, not copied question text or sensitive data.
+The exact serialized shapes of `answers_state`, `question_ids` and `results` are
+documented in `contracts/learning-api.md`, `data-model.md` and the OpenAPI. They
+contain IDs and numeric scores only — never copied question/answer text — and no
+answer correctness is exposed while an attempt is active.
 
 ## API
 
@@ -203,11 +231,13 @@ All URLs use /api/v1/ and require Bearer access token unless noted.
 
 - GET /api/v1/topics/{topic_id}/progress/
 - PATCH /api/v1/topics/{topic_id}/progress/
-- POST /api/v1/topics/{topic_id}/sections/{section_id}/complete/
+- POST /api/v1/topics/{topic_id}/blocks/{block_id}/complete/
 
-Progress response includes topic status, theory percentage, completed section
-count and total section count. PATCH supports opening/starting state and explicit
-manual learned transition only where allowed by the service.
+Progress response includes topic status, theory percentage, completed block count
+and total block count. PATCH supports opening/starting state (`{"opened": true}`)
+and the explicit manual learned transition (`{"status": "learned"}`); unknown
+fields are rejected with 422. The block route resolves the Topic from the block
+and rejects a mismatched pair with 404.
 
 ### Flashcards
 
@@ -236,7 +266,14 @@ next_review_at.
 
 Start returns the existing active attempt with 200, or creates one with 201 when
 no active attempt exists. PATCH saves selected answer IDs. Submit freezes the
-attempt and returns score, passed, per-question result visibility and timestamps.
+attempt and returns score, per-question result visibility and timestamps; no pass
+flag is computed (rule 21).
+
+The attempt payload carries `question_ids`, `selected_answer_ids`, the current
+`questions`/`answers` restricted to the frozen question set (never `is_correct`
+while the attempt is active) and, after submit, `results`, `score_percent` and
+the timestamps. `GET /api/v1/quizzes/{id}/` and the topic quiz list expose the
+derived `best_score_percent` (null without a submitted attempt).
 
 User API returns only questions/answers allowed by Topic access and only
 published content. It does not expose answer correctness before submit.
@@ -249,7 +286,7 @@ published content. It does not expose answer correctness before submit.
 | mutate own progress | deny | own only | own only | own only by default |
 | read flashcard review | deny | own only | own only | own only by default |
 | review flashcard | deny | own only | own only | own only by default |
-| read quiz | access policy | access policy | access policy | access policy |
+| read quiz | deny | access policy | access policy | access policy |
 | start/save/submit attempt | deny | own only | own only | own only by default |
 | inspect other users' learning state | deny | deny | deny | separate admin feature |
 
@@ -257,13 +294,13 @@ Role does not bypass Topic access policy for user-facing endpoints.
 
 ## Validation
 
-- Topic, Section, Flashcard and Quiz must exist and be accessible.
-- Section must belong to the requested Topic.
+- Topic, ContentBlock, Flashcard and Quiz must exist and be accessible.
+- The theory block must belong to the requested Topic.
 - Review action must be know or repeat.
-- Attempt PATCH accepts only answer IDs belonging to the attempt's Quiz.
+- Attempt PATCH accepts only answer IDs belonging to the attempt's Quiz and to
+  its frozen question set.
 - Attempt cannot save after submission.
-- Submit requires all required question decisions according to Quiz contract;
-  unanswered questions receive zero.
+- Submit accepts a partial selection; unanswered questions receive zero.
 - At least two answers and one correct answer are required for each question.
 - Score is bounded to 0–100 and rounded only at final response/storage boundary.
 
@@ -272,7 +309,7 @@ Role does not bypass Topic access policy for user-facing endpoints.
 | Condition | HTTP | Code |
 |---|---:|---|
 | missing/expired auth | 401 | AUTHENTICATION_REQUIRED |
-| inaccessible Topic | 403 or 404 | TOPIC_ACCESS_DENIED or RESOURCE_NOT_FOUND |
+| inaccessible Topic | 403 or 404 | TOPIC_ENTITLEMENT_REQUIRED or RESOURCE_NOT_FOUND |
 | duplicate active attempt | 409 | ACTIVE_ATTEMPT_EXISTS |
 | submitted attempt mutation | 409 | ATTEMPT_ALREADY_SUBMITTED |
 | answer belongs to another Quiz | 422 | INVALID_ANSWER |
@@ -285,9 +322,9 @@ before quiz submit.
 
 ## Edge cases
 
-- Topic has zero sections: theory percentage is 0.
-- Section is deleted after progress exists: progress cleanup follows Topic
-  deletion and does not leave an orphan row.
+- Topic has zero published theory blocks: theory percentage is 0.
+- A theory block is deleted after progress exists: its row is removed by the
+  database cascade and no orphan row survives.
 - User clicks review action twice: the second request is serialized against the
   latest current row and does not create duplicate state.
 - User opens the same Quiz twice concurrently: one active attempt wins and the
@@ -295,14 +332,16 @@ before quiz submit.
 - User submits no answers: score is 0 and attempt is submitted.
 - User selects all answers including wrong ones: partial formula applies and
   score cannot be negative.
-- Quiz content changes after attempt start: attempt keeps stable question/answer
-  IDs; incompatible content changes are blocked or require a new attempt policy.
+- Quiz content changes after attempt start: the attempt keeps its frozen question
+  ID set and stable answer IDs; grading uses the current correctness flags at
+  submit and the graded result is persisted, so a submitted attempt stays
+  reproducible.
 - User loses network while saving: retrying the same PATCH is safe because it
   replaces current answer state.
 
 ## Transactions
 
-- Section completion and Topic progress transition are one transaction.
+- Theory-block completion and Topic progress transition are one transaction.
 - Flashcard review action locks or safely updates the current review row in one
   transaction.
 - Starting an attempt and enforcing one-active-attempt invariant are atomic.
@@ -336,14 +375,16 @@ None. Review scheduling and quiz scoring are synchronous.
 - The frontend prototype's formula and guest limits are not used as contract.
 - Existing learning app is a skeleton; new migrations and service boundaries are
   required.
-- Quiz content mutation during active attempts needs a plan-time migration/
-  locking decision if editors can modify published questions.
+- Quiz content mutation during active attempts: the question set is frozen at
+  attempt start and the graded result is persisted at submit, so a submitted
+  attempt stays reproducible; an edit to `is_correct` still affects an attempt
+  that is still active (decision record §Q2.2).
 - Subscription entitlement remains an external policy dependency.
 
 ## Acceptance criteria
 
 1. Anonymous usage never creates learning state.
-2. Authenticated users can complete sections and see deterministic theory
+2. Authenticated users can complete theory blocks and see deterministic theory
    percentage.
 3. One current review row exists per user/card and actions update its schedule.
 4. Multiple quizzes and multiple correct answers are supported.
@@ -356,7 +397,7 @@ None. Review scheduling and quiz scoring are synchronous.
 ## Test scenarios
 
 - Progress model uniqueness and status transitions.
-- Section completion and zero-section boundary.
+- Theory-block completion and the zero-block boundary.
 - Anonymous denial and user ownership.
 - Flashcard first review, know/repeat schedule and concurrent clicks.
 - Quiz start, resume, invalid answer IDs and active duplicate.
@@ -374,6 +415,8 @@ None. Review scheduling and quiz scoring are synchronous.
 
 ## Open questions
 
-None for the agreed MVP behavior. Exact serializer field naming for
-answers_state is an API design detail that must be fixed in the plan/OpenAPI
-before implementation.
+None for the agreed MVP behavior. The `answers_state`/`question_ids`/`results`
+shapes are fixed by the decision record and documented in
+`contracts/learning-api.md`, `data-model.md` and the OpenAPI. The score threshold
+for automatic topic completion remains an open **owner** decision (decision
+register items 67-68) and is not implemented by this feature.
