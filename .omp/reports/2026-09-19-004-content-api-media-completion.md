@@ -7,8 +7,8 @@
 - Задачи: `specs/004-content-api-media/tasks.md` (T001–T020 выполнены)
 - Статус: `VERIFIED` для реализации и валидации; PR открыт, ручное ревью и
   merge остаются за владельцем
-- Коммит: `a1b3781` (фича), `ad8a314` (отчёт и PROJECT_STATE), `512cfa0`
-  (исправление staged-secret проверки); HEAD ветки — `512cfa0`
+- Коммит фичи: `a1b3781` (в той же ветке далее идут коммиты документации запуска
+  и исправление staged-secret проверки)
 - PR: https://github.com/roki0601/medcore-backend/pull/6
 - Спека: `specs/004-content-api-media/spec.md` приведена к согласованному
   контракту (статус `Approved for implementation`)
