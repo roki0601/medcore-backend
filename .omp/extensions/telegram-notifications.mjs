@@ -116,20 +116,22 @@ export function parseSubagentCompletion(value) {
 
 export function isBlockerMessage(value) {
   const text = String(value || "");
-  if (
-    /^\s*(?:STATUS|COMPLETION STATUS)\s*:\s*(?:BLOCKED|NEEDS_HUMAN_REVIEW)\b/im.test(
+  return (
+    /^\s*(?:STATUS|COMPLETION STATUS|СТАТУС)\s*:\s*(?:BLOCKED|NEEDS_HUMAN_REVIEW|ЗАБЛОКИРОВАН|ТРЕБУЕТСЯ РЕШЕНИЕ)\b/im.test(
       text,
-    )
-  ) {
-    return true;
-  }
-  return /\b(?:blocker|blocked|cannot continue|needs human review|requires a decision)\b|заблокирован|требуется решение|не могу продолжить/i.test(
-    text,
+    ) ||
+    /^\s*(?:BLOCKER|БЛОКЕР)\s*:\s*(?!NONE\b|NO\b|НЕТ\b).+/im.test(text)
   );
 }
 
 export function looksLikeFinalMessage(value) {
   return /^\s*(?:STATUS|COMPLETION STATUS|PR)\s*:/im.test(String(value || ""));
+}
+
+export function classifyManagerMessage(value) {
+  if (isBlockerMessage(value)) return "blocker";
+  if (looksLikeFinalMessage(value)) return "completion";
+  return null;
 }
 
 export async function sendTelegramMessage(
@@ -175,7 +177,7 @@ function assistantText(message) {
 
 export function notificationText(kind, text, identity = {}) {
   const project = basename(process.cwd()) || "project";
-  const title = kind === "blocker" ? "⛔ OMP blocker" : "✅ OMP завершил работу";
+  const title = kind === "blocker" ? "⛔ OMP: блокер" : "✅ OMP завершил работу";
   const name = identity.name || process.env.OMP_AGENT_NAME || "manager";
   const role = identity.role || process.env.OMP_AGENT_ROLE || "manager";
   const flow = identity.flow || "main";
@@ -198,7 +200,7 @@ function extractEventText(value, depth = 0) {
 
 export default function telegramNotifications(pi) {
   let lastAssistantMessage = "";
-  let finalNotificationSent = false;
+  let managerTerminalNotificationSent = false;
   const notifiedSubagents = new Set();
 
   const notify = (kind, text, identity) => {
@@ -207,7 +209,8 @@ export default function telegramNotifications(pi) {
 
   pi.on("agent_start", async () => {
     lastAssistantMessage = "";
-    finalNotificationSent = false;
+    managerTerminalNotificationSent = false;
+    notifiedSubagents.clear();
   });
 
   pi.on("message_end", async (event) => {
@@ -215,11 +218,11 @@ export default function telegramNotifications(pi) {
     if (!text) return;
     lastAssistantMessage = text;
 
-    if (isBlockerMessage(text)) notify("blocker", text);
-    if (looksLikeFinalMessage(text)) {
-      notify("completion", text, { name: "manager", role: "manager", flow: "main" });
-      finalNotificationSent = true;
-    }
+    const kind = classifyManagerMessage(text);
+    if (!kind || managerTerminalNotificationSent) return;
+
+    managerTerminalNotificationSent = true;
+    notify(kind, text, { name: "manager", role: "manager", flow: "main" });
   });
 
   pi.on("tool_execution_end", async (event) => {
@@ -244,7 +247,8 @@ export default function telegramNotifications(pi) {
   });
 
   pi.on("agent_end", async () => {
-    if (finalNotificationSent) return;
+    if (managerTerminalNotificationSent) return;
+    managerTerminalNotificationSent = true;
     notify("completion", lastAssistantMessage, {
       name: "manager",
       role: "manager",

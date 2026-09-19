@@ -5,6 +5,7 @@ import { join } from "node:path";
 import test from "node:test";
 
 import {
+  classifyManagerMessage,
   isBlockerMessage,
   looksLikeFinalMessage,
   notificationText,
@@ -47,6 +48,18 @@ test("redacts credential-shaped text and detects explicit workflow states", () =
   assert.equal(isBlockerMessage(message), true);
   assert.equal(isBlockerMessage("STATUS: DONE\nPR: https://github.com/example/pr/1"), false);
   assert.equal(looksLikeFinalMessage("STATUS: DONE\nPR: none"), true);
+});
+
+test("ignores narrative blocker mentions in a final report", () => {
+  const report = `Feature delivered.
+
+## Blocker notification
+No hard blocker required Telegram escalation — reviewer findings were resolved.`;
+
+  assert.equal(isBlockerMessage(report), false);
+  assert.equal(classifyManagerMessage(report), null);
+  assert.equal(classifyManagerMessage("STATUS: BLOCKED\nNeed owner decision"), "blocker");
+  assert.equal(classifyManagerMessage("STATUS: DONE\nPR: none"), "completion");
 });
 
 test("sends a bounded plain-text Telegram message", async () => {
