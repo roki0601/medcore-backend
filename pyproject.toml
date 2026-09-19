@@ -8,6 +8,7 @@ dependencies = [
     "django",
     "django-cors-headers",
     "djangorestframework",
+    "djangorestframework-simplejwt>=5.5.1",
     "drf-spectacular",
     "gunicorn",
     "psycopg[binary]",

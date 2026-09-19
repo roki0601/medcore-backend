@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -24,6 +25,49 @@ def env_list(name: str, default: list[str] | None = None) -> list[str]:
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "django-insecure-local-only-change-me")
 DEBUG = env_bool("DJANGO_DEBUG")
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", ["localhost", "127.0.0.1"])
+
+JWT_SIGNING_KEY = os.environ.get("JWT_SIGNING_KEY", "")
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+TELEGRAM_AUTH_MAX_AGE = int(os.environ.get("TELEGRAM_AUTH_MAX_AGE", "86400"))
+TELEGRAM_AUTH_FUTURE_SKEW = int(os.environ.get("TELEGRAM_AUTH_FUTURE_SKEW", "60"))
+AUTH_REFRESH_COOKIE_NAME = "medcore_refresh"
+AUTH_REFRESH_COOKIE_PATH = "/api/v1/auth/"
+AUTH_REFRESH_COOKIE_SAMESITE = "Lax"
+AUTH_REFRESH_COOKIE_SECURE = env_bool("AUTH_REFRESH_COOKIE_SECURE", not DEBUG)
+AUTH_REFRESH_COOKIE_MAX_AGE = 30 * 24 * 60 * 60
+OPENAPI_PUBLIC = env_bool("OPENAPI_PUBLIC", DEBUG)
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=30),
+    "ROTATE_REFRESH_TOKENS": False,
+    "BLACKLIST_AFTER_ROTATION": False,
+    "UPDATE_LAST_LOGIN": False,
+    "ALGORITHM": "HS256",
+    "SIGNING_KEY": JWT_SIGNING_KEY,
+    "VERIFYING_KEY": None,
+    "AUDIENCE": "medcore-frontend",
+    "ISSUER": "medcore-backend",
+    "JWK_URL": None,
+    "LEEWAY": 0,
+    "AUTH_HEADER_TYPES": ("Bearer",),
+    "AUTH_HEADER_NAME": "HTTP_AUTHORIZATION",
+    "USER_ID_FIELD": "id",
+    "USER_ID_CLAIM": "sub",
+    "JTI_CLAIM": "jti",
+    "TOKEN_TYPE_CLAIM": "token_type",
+}
+
+AUTHENTICATION_CLASSES = ("apps.users.authentication.VersionedJWTAuthentication",)
+
+THROTTLE_RATES = {
+    "telegram_login": "10/min",
+    "telegram_login_user": "5/min",
+    "refresh": "30/min",
+    "refresh_session": "30/min",
+    "account_mutation": "10/min",
+}
+
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -128,7 +172,14 @@ CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS")
 
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_AUTHENTICATION_CLASSES": AUTHENTICATION_CLASSES,
+    "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
+    "DEFAULT_THROTTLE_CLASSES": ("rest_framework.throttling.ScopedRateThrottle",),
+    "DEFAULT_THROTTLE_RATES": THROTTLE_RATES,
+    "EXCEPTION_HANDLER": "apps.common.exceptions.exception_handler",
 }
+
+CSRF_FAILURE_VIEW = "apps.common.views.csrf_failure"
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "MedCore API",
