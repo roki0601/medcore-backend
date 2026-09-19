@@ -25,6 +25,16 @@
 - Pre-commit runs Ruff checks and formatting through the project `uv` environment.
 - GitHub Actions runs formatting, lint, Django checks, migration checks and tests
   against PostgreSQL 16 and Redis 7 services.
+- Project-local OMP uses behavior-focused test budgets, dependency-aware worker
+  zones (up to four disjoint DeepSeek workers), one project-wide validation pass,
+  and `high` thinking for DeepSeek roles. The wrapper disables session-title
+  generation because an unavailable local title model previously added about
+  96 seconds per manager/worker session before timing out; no local Qwen/Ufanet
+  provider is registered anymore.
+- OMP Telegram notifications use one final manager report per session with
+  MarkdownV2 formatting. Successful child results stay silent; only actionable
+  blockers are forwarded, and an unconfirmed session is reported as a warning
+  rather than a fake successful completion.
 
 ## Source of truth
 

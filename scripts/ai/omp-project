@@ -14,7 +14,7 @@ export OMP_TELEGRAM_ENV_FILE="$TELEGRAM_ENV_FILE"
 
 exec omp \
   --cwd "$PROJECT_ROOT" \
-  --extension "$PROJECT_ROOT/.omp/extensions/project-providers.ts" \
+  --no-title \
   --extension "$PROJECT_ROOT/.omp/extensions/git-guards.ts" \
   --extension "$PROJECT_ROOT/.omp/extensions/telegram-notifications.mjs" \
   "$@"

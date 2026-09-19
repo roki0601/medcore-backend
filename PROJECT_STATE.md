@@ -57,10 +57,17 @@ stop.
 
 ## Retry/escalation
 
-For one task, use one sequential DeepSeek `implementer`. Finish the coherent
-implementation before running Ruff/pytest. Then run the narrow checks once, fix
-locally, and rerun only the failed check. Invoke Luna only when the same failure
-persists after two concrete attempts, the investigation loops, or a
+Build a dependency-aware zone plan instead of mapping one worker to every task.
+Use one DeepSeek `implementer` for one coherent zone, or dynamically launch
+`N = min(4, independent zones, available session capacity)` workers in parallel
+when their writable files, migrations, fixtures, contracts, and dependency
+chains are disjoint. Shared foundations and overlapping zones remain
+sequential. Finish each zone before its targeted checks; then run project-wide
+Ruff/pytest/Django/migration checks once after
+integration. Add tests only for distinct behavior, security/permission,
+validation/error, boundary/concurrency, or regression coverage; prefer
+parametrization and report the rationale. Invoke Luna only when the same
+failure persists after two concrete attempts, the investigation loops, or a
 source/contract conflict needs an independent read-only opinion. Record the
 escalation and its outcome; if the sources still conflict after two bounded
 rounds, write `BLOCKED` with evidence and the exact unresolved conflict.

@@ -6,10 +6,8 @@ modelRoleStorage: project
 
 modelRoles:
   default: openrouter/deepseek/deepseek-v4.1-flash
-  smol: ufanet-local/Qwen3-Coder-Next-NVFP4
   task: openrouter/deepseek/deepseek-v4.1-flash
   commit: openrouter/deepseek/deepseek-v4.1-flash
-  tiny: ufanet-local/Qwen3-Coder-Next-NVFP4
 
   plan: openrouter/deepseek/deepseek-v4.1-flash
   slow: openrouter/deepseek/deepseek-v4.1-flash

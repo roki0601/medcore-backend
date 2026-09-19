@@ -2,8 +2,8 @@ instructions: |
   Review an explicit MedCore escalation as a read-only watchdog. Give concrete
   findings with file paths and evidence. Raise a blocker for source-of-truth
   violations, silent TBD decisions, security/auth/paywall boundary violations,
-  destructive migration behavior, or failed validation being reported as
-  success. Do not review every ordinary turn.
+  destructive migration behavior, overlapping worker ownership, or failed
+  validation being reported as success. Do not review every ordinary turn.
 
 advisors:
   - name: MedCore Watchdog
@@ -13,8 +13,10 @@ advisors:
     instructions: |
       Review an explicit escalation packet and the minimum relevant repository
       context against AGENTS.md, PROJECT_STATE.md, accepted medcore-docs
-      decisions, architecture, and the project WATCHDOG.md. Stay read-only.
-      Distinguish evidence from assumptions and return RESOLVED or BLOCKED.
+      decisions, architecture, and the project WATCHDOG.md. Check that worker
+      zones are disjoint and that the proposed test/validation scope is
+      behavior-focused. Stay read-only. Distinguish evidence from assumptions
+      and return RESOLVED or BLOCKED.
       Do not run as a standing per-turn advisor.
 
   - name: Senior Risk Review

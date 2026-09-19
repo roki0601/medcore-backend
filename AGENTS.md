@@ -106,12 +106,18 @@ direction, API contract, risks and validation commands before editing.
 
 ## Testing and verification
 
-Every behavior change must include or update tests. At minimum cover happy path,
-permissions, validation/errors and important boundary/concurrency cases required
-by the spec.
+Every behavior change must include or update tests, but tests are behavior
+coverage, not line-count coverage. For a non-trivial changed contract, cover
+the applicable happy path, distinct business invariant, permission/security
+boundary, validation/error contract, important boundary/concurrency case, and
+regression required by the spec. Do not add tests for trivial field echo,
+transparent wrappers, or duplicate service/API paths; use parametrization for
+behavior matrices. The worker must report why each new test exists and the
+manager must report the resulting test budget.
 
-After implementation, run the narrowest relevant checks first, then the project
-checks that exist:
+Workers run the narrowest relevant checks for their owned zone first. After all
+zones are integrated, the manager runs the project checks once, then reruns
+only checks affected by a review fix:
 
 ```text
 uv run ruff format --check .
@@ -151,8 +157,10 @@ update focused and traceable. Do not create dozens of ADRs or duplicate
 Project-local OMP settings and agents live under `.omp/`; `PROJECT_STATE.md`
 tracks the orchestration state but does not override the source-of-truth rules
 above. Use `scripts/ai/omp-project` to activate the project config and Git
-guards. OMP agents must preserve user changes, keep implementation writers
-sequential, run the delegated quorum before advancing a blocked or draft
-feature, record material decisions and final reports under `.omp/`, and stop
+guards. OMP agents must preserve user changes, build a dependency-aware zone
+plan, dynamically launch up to four disjoint implementation workers in
+parallel, keep overlapping/shared zones sequential, run the delegated quorum
+only for documented escalation triggers, centralize final validation and
+delivery, record material decisions and final reports under `.omp/`, and stop
 only for an irreconcilable source-of-truth conflict or a failed validation that
 the retry policy cannot resolve.

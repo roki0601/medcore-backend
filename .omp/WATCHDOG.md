@@ -17,14 +17,19 @@ review and decision protocol is defined in `.omp/AUTONOMOUS_REVIEW.md`.
   accepted decision.
 - Reject public API, auth/token, permission, migration, or cross-domain changes
   that are outside the approved spec.
-- Require tests for happy path, permissions, validation/errors, and relevant
-  boundary/concurrency behavior. A failed check cannot be reported as `DONE`.
+- Require behavior-focused tests for the applicable happy path, distinct
+  invariants, permissions, validation/errors, regressions, and relevant
+  boundary/concurrency behavior. Reject line-coverage tests,
+  transparent-wrapper duplicates, and one-test-per-trivial-field patterns. A
+  failed check cannot be reported as `DONE`.
 - Watch for migration rewrites, weakened tests, leaked secrets, raw sensitive
   payloads in logs, and changes to unrelated user work.
 
 ## Orchestration policy
 
-- Keep implementation writers sequential: one DeepSeek worker at a time.
+- Require a dependency-aware zone plan. Launch up to four DeepSeek workers in
+  parallel only for disjoint writable zones; keep shared foundations,
+  migrations, contracts, fixtures, and overlapping files sequential.
 - Use DeepSeek for planning, decomposition, coordination, and ordinary review.
 - Keep Luna detached from ordinary turns. Invoke the read-only Luna watchdog
   only for the objective escalation triggers in `.omp/AUTONOMOUS_REVIEW.md`.

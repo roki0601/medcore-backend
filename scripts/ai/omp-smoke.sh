@@ -4,15 +4,6 @@ set -euo pipefail
 PROJECT_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$PROJECT_ROOT"
 
-QWEN_BASE_URL="http://127.0.0.1:8055"
-
-curl -fsS "$QWEN_BASE_URL/health" >/dev/null
-models_json="$(curl -fsS "$QWEN_BASE_URL/v1/models")"
-if ! grep -Fq 'Qwen3-Coder-Next-NVFP4' <<< "$models_json"; then
-  echo "Qwen model is missing from $QWEN_BASE_URL/v1/models" >&2
-  exit 1
-fi
-
 run_model_smoke() {
   local label="$1"
   local role="$2"
@@ -35,9 +26,9 @@ run_model_smoke() {
   echo "$label: OK"
 }
 
-run_model_smoke QWEN @default
-run_model_smoke LUNA @plan
-run_model_smoke DEEPSEEK @senior_review
+run_model_smoke DEEPSEEK @plan
+run_model_smoke LUNA @advisor
+run_model_smoke DEEPSEEK_REVIEW @senior_review
 
 ./scripts/ai/check-git-safety.sh
 echo "git safety check: OK"

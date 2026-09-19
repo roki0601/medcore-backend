@@ -21,16 +21,57 @@ implementation or review authorities.
 
 ## Implementation and validation cadence
 
-The implementation worker completes one coherent approved task before running
-the normal validation suite. It must not run Ruff or pytest after every file,
-edit, or small refactor. During implementation it may inspect code and existing
-tests, but validation is intentionally batched:
+The manager builds a worker plan from the dependency graph, not from the number
+of task IDs. A worker zone is a coherent ownership boundary with an explicit
+scope: stable zone id, exact files or modules, non-goals, dependencies,
+parallel group, risk level, targeted checks, and a small test budget. Treat
+`[P]` markers in `tasks.md` only as candidates; verify file ownership and
+dependencies before parallelizing.
+
+Choose the smallest safe number of workers dynamically:
+
+1. use one worker when the feature is one coherent zone;
+2. use multiple workers only when their writable files, migrations, fixtures,
+   contracts, and dependency chains are disjoint;
+3. give shared foundations, migrations, public contracts, and shared fixtures
+   one owner and complete them before dependent zones;
+4. dispatch independent zones from the same parallel group together, while
+   keeping overlapping zones sequential;
+5. choose `N = min(4, independent zones, available session capacity)`. Lower
+   `N` to one when shared mutable state, an unresolved contract, or endpoint
+   saturation makes parallel work unsafe. A worker must report a dependency
+   instead of editing another zone's files;
+6. if a feature has more zones than the cap, process them in dependency-aware
+   batches rather than creating a worker for every tiny task.
+
+Every worker receives a compact context packet: base commit, zone ownership,
+relevant paths/line ranges, invariants, dependency edges, and exact targeted
+commands. Do not copy the manager transcript or unrelated repository context
+into every worker. The implementation worker completes its coherent zone and
+tests before validation; it must not run Ruff or pytest after every file, edit,
+or small refactor. Validation is intentionally batched:
 
 1. finish the task's implementation and tests;
-2. run the narrow relevant formatter/linter/test checks once;
+2. run only the zone's relevant formatter/linter/test checks once;
 3. fix failures locally, rerunning only the failed check while converging;
-4. after the task is coherent, run the required project checks once and report
-   their exact results.
+4. return the evidence packet; the manager runs the project-wide checks once
+   after all zones are integrated, not once per worker.
+
+Do not add a test merely because a line, serializer field echo, or transparent
+wrapper exists. For a non-trivial changed contract, cover the applicable happy
+path, distinct business invariant, permission or security boundary,
+validation/error contract, important boundary/concurrency case, and regression.
+Prefer parametrized cases for a behavior matrix and do not duplicate service
+and API tests when the API only forwards the same behavior. The worker reports
+the test rationale and the number of new tests.
+
+After the last implementation zone, read-only review and smoke preparation may
+run in parallel. Use one review pass per applicable risk axis. Create one fixes
+worker for all actionable BLOCKER/HIGH findings (and an approved contract-
+critical MEDIUM finding), not one worker per finding. Low/info findings remain
+in the report unless they block the contract. Run full Ruff, full pytest,
+Django checks, migration checks, and live smoke once at the delivery boundary;
+rerun only checks affected by a fix before that boundary.
 
 A first ordinary lint or test failure is not a Luna escalation. The manager
 keeps the fix loop local unless the same signature persists after two concrete
@@ -117,8 +158,10 @@ Every run that reaches `VERIFIED` or `BLOCKED` writes a final report to:
 
 The report includes the decision-record links, branch/commit/PR, files changed,
 exact checks and results, reviewer verdicts, unresolved risks, and the next
-action. It must not contain credentials, JWTs, cookies, Telegram secrets, or raw
-sensitive payloads.
+action. It also includes the planned/actual worker count, zone start/end times,
+targeted-check and final-check durations, critical path, test count/rationale,
+and integration waits. It must not contain credentials, JWTs, cookies, Telegram
+secrets, or raw sensitive payloads.
 
 ## Delivery boundary
 

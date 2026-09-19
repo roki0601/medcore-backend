@@ -6,6 +6,7 @@ import test from "node:test";
 
 import {
   classifyManagerMessage,
+  escapeMarkdownV2,
   isBlockerMessage,
   looksLikeFinalMessage,
   notificationText,
@@ -14,6 +15,7 @@ import {
   readTelegramSettings,
   redactNotificationText,
   sendTelegramMessage,
+  default as telegramNotifications,
 } from "../../.omp/extensions/telegram-notifications.mjs";
 
 test("parses notification settings without changing token text", () => {
@@ -62,7 +64,7 @@ No hard blocker required Telegram escalation — reviewer findings were resolved
   assert.equal(classifyManagerMessage("STATUS: DONE\nPR: none"), "completion");
 });
 
-test("sends a bounded plain-text Telegram message", async () => {
+test("sends a bounded MarkdownV2 Telegram message", async () => {
   let request;
   const ok = await sendTelegramMessage(
     "STATUS: DONE\nPR: none",
@@ -76,20 +78,30 @@ test("sends a bounded plain-text Telegram message", async () => {
   assert.equal(ok, true);
   assert.match(request.url, /api\.telegram\.org\/bot/);
   assert.equal(JSON.parse(request.options.body).chat_id, "974111221");
+  assert.equal(JSON.parse(request.options.body).parse_mode, "MarkdownV2");
   assert.equal(JSON.parse(request.options.body).text, "STATUS: DONE\nPR: none");
 });
 
-test("identifies the manager and labels its text as a mini-report", () => {
+test("escapes MarkdownV2 control characters in dynamic values", () => {
+  assert.equal(
+    escapeMarkdownV2("feature_004 [media] (local) #1.2"),
+    "feature\\_004 \\[media\\] \\(local\\) \\#1\\.2",
+  );
+});
+
+test("formats the manager report as a compact MarkdownV2 message", () => {
   const text = notificationText("completion", "STATUS: DONE\nPR: none", {
     name: "manager",
     role: "manager",
     flow: "main",
   });
 
-  assert.match(text, /Агент: manager/);
-  assert.match(text, /Роль: manager/);
-  assert.match(text, /Мини-отчёт:/);
+  assert.match(text, /\*Агент:\* `manager`/);
+  assert.match(text, /\*Роль:\* `manager`/);
+  assert.match(text, /\*Проект:\* `medcore-backend`/);
+  assert.match(text, /\*Итог:\*/);
   assert.match(text, /STATUS: DONE/);
+  assert.doesNotMatch(text, /Итоговый текст отсутствует/);
 });
 
 test("extracts a completed subagent identity and concise conclusion", () => {
@@ -111,6 +123,73 @@ test("extracts a completed subagent identity and concise conclusion", () => {
 
 test("ignores ordinary tool output without a completed subagent result", () => {
   assert.equal(parseSubagentCompletion("reading specs/002-content-catalog-access"), null);
+});
+
+function notificationHarness() {
+  const handlers = new Map();
+  const sent = [];
+  telegramNotifications(
+    {
+      on(name, handler) {
+        handlers.set(name, handler);
+      },
+    },
+    {
+      send: async (text) => {
+        sent.push(text);
+        return true;
+      },
+    },
+  );
+  return { handlers, sent };
+}
+
+test("does not notify on intermediate agent_end and reports an unconfirmed empty session once", async () => {
+  const { handlers, sent } = notificationHarness();
+
+  assert.equal(handlers.has("agent_end"), false);
+  assert.equal(sent.length, 0);
+
+  await handlers.get("session_shutdown")({});
+  await handlers.get("session_shutdown")({});
+  assert.equal(sent.length, 1);
+  assert.match(sent[0], /итог не подтверждён/i);
+  assert.doesNotMatch(sent[0], /Итоговый текст отсутствует/);
+});
+
+test("sends one final report at session shutdown without duplicating agent turns", async () => {
+  const { handlers, sent } = notificationHarness();
+
+  await handlers.get("message_end")({
+    message: {
+      role: "assistant",
+      stopReason: "stop",
+      content: "Все проверки пройдены.\nИтоговый отчёт сформирован.",
+    },
+  });
+  await handlers.get("session_shutdown")({});
+
+  assert.equal(sent.length, 1);
+  assert.match(sent[0], /\*✅ OMP завершил работу\*/);
+  assert.match(sent[0], /Все проверки пройдены/);
+});
+
+test("does not spam successful subagent completions and deduplicates blockers", async () => {
+  const { handlers, sent } = notificationHarness();
+
+  const successful =
+    '<task-result id="Impl004" agent="implementer" status="completed">' +
+    '{"verdict":"READY","summary":"Зона готова."}</task-result>';
+  await handlers.get("tool_execution_end")({ result: successful });
+  assert.equal(sent.length, 0);
+
+  const blocked =
+    '<task-result id="Review004" agent="senior-reviewer" status="completed">' +
+    '{"verdict":"BLOCKED","summary":"Нужна правка контракта."}</task-result>';
+  await handlers.get("tool_execution_end")({ result: blocked });
+  await handlers.get("tool_execution_end")({ result: blocked });
+  assert.equal(sent.length, 1);
+  assert.match(sent[0], /Нужна правка контракта/);
 });
 
 test("setup-file fixture remains readable only by this user", async () => {

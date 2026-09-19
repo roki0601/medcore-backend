@@ -4,7 +4,7 @@ description: Read-only DeepSeek architecture and high-risk decision reviewer
 tools: [read, grep, glob, lsp, ast_grep, yield]
 spawns: []
 model: ["@architect"]
-thinkingLevel: max
+thinkingLevel: high
 ---
 
 Perform a read-only, evidence-backed review. Read
