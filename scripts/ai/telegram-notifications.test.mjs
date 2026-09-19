@@ -7,6 +7,7 @@ import test from "node:test";
 import {
   classifyManagerMessage,
   escapeMarkdownV2,
+  formatNotificationReport,
   isBlockerMessage,
   looksLikeFinalMessage,
   notificationText,
@@ -86,6 +87,42 @@ test("escapes MarkdownV2 control characters in dynamic values", () => {
   assert.equal(
     escapeMarkdownV2("feature_004 [media] (local) #1.2"),
     "feature\\_004 \\[media\\] \\(local\\) \\#1\\.2",
+  );
+});
+
+test("converts limited Markdown to safe Telegram MarkdownV2", () => {
+  const report = formatNotificationReport(`
+# Проверка 002-content-catalog-access
+Кириллица, _underscore_, - тире, точка., [media].
+**Важно: 002-content-catalog-access**
+Путь: \`/home/roki/dev/medcore/[media]/002-content-catalog-access.py\`
+- первый пункт
+* второй пункт
++ третий пункт
+`);
+
+  assert.equal(
+    report,
+    "*Проверка 002\\-content\\-catalog\\-access*\n" +
+      "Кириллица, \\_underscore\\_, \\- тире, точка\\., \\[media\\]\\.\n" +
+      "*Важно: 002\\-content\\-catalog\\-access*\n" +
+      "Путь: `/home/roki/dev/medcore/[media]/002-content-catalog-access.py`\n" +
+      "• первый пункт\n" +
+      "• второй пункт\n" +
+      "• третий пункт",
+  );
+  assert.equal(
+    formatNotificationReport("Код: `C:\\tmp\\file`"),
+    "Код: `C:\\\\tmp\\\\file`",
+  );
+});
+
+test("escapes unsupported and unclosed Markdown without leaking delimiters", () => {
+  assert.equal(
+    formatNotificationReport(
+      "Обычный *текст* _текст_ [media] (локально) - = ! # + | { } ~ > `незакрытый",
+    ),
+    "Обычный \\*текст\\* \\_текст\\_ \\[media\\] \\(локально\\) \\- \\= \\! \\# \\+ \\| \\{ \\} \\~ \\> \\`незакрытый",
   );
 });
 
