@@ -2,11 +2,13 @@
 
 - Feature: `001-telegram-auth-account`
 - Branch: `feature/001-telegram-auth-account`
-- Worktree: `/home/roki/dev/medcore/medcore-backend` (uncommitted; no PR yet)
+- Worktree: `/home/roki/dev/medcore/medcore-backend` (clean)
 - Date: 2026-09-18
 - Decision record: `.omp/decisions/2026-09-18-001-telegram-auth-account-quorum.md`
 - Tasks: `specs/001-telegram-auth-account/tasks.md` (T001–T032 complete)
-- Status: `VERIFIED` for implementation and validation; commit/merge pending
+- Status: `VERIFIED` for implementation and validation; PR open, human review/merge pending
+- Commits: `9ca96cc`, `23b25b7`
+- PR: https://github.com/roki0601/medcore-backend/pull/2
 
 ## Reviewer verdicts (from the accepted decision record)
 
@@ -139,5 +141,5 @@ exhausted`; the source was restored and byte-compared afterwards.
 
 ## Next action
 
-Review the diff on `feature/001-telegram-auth-account`, commit, and merge before
+Review PR #2 on `feature/001-telegram-auth-account` and merge it manually before
 starting `002-content-catalog-access`.

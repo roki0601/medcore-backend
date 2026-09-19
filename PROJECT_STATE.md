@@ -58,6 +58,7 @@ rounds, write `BLOCKED` with evidence and the exact unresolved conflict.
 Feature 001 is implemented and validated on
 `feature/001-telegram-auth-account`; review the diff, commit it, push the
 feature branch, and create a PR with the implementation summary and evidence.
+Current PR: https://github.com/roki0601/medcore-backend/pull/2.
 Human review and merge are required before starting `002-content-catalog-access`.
 Do not start a new feature while this branch is unreviewed. Spec 003 must
 implement the User foreign-key `ON DELETE CASCADE` contract stated in the 001
