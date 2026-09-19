@@ -1,6 +1,20 @@
 from django.urls import path
 
 from .views import (
+    ContentBlockDetailView,
+    ContentBlockListView,
+    ContentFlashcardDetailView,
+    ContentFlashcardListView,
+    ContentQuizDetailView,
+    ContentQuizListView,
+    ContentSectionDetailView,
+    ContentSectionListView,
+    ContentSourceDetailView,
+    ContentSourceListView,
+    ContentSubjectDetailView,
+    ContentSubjectListView,
+    ContentTopicDetailView,
+    ContentTopicListView,
     SearchView,
     SectionDetailView,
     SubjectDetailView,
@@ -22,4 +36,74 @@ urlpatterns = [
         name="topic-content",
     ),
     path("search/", SearchView.as_view(), name="search"),
+    path(
+        "content/subjects/",
+        ContentSubjectListView.as_view(),
+        name="content-subject-list",
+    ),
+    path(
+        "content/subjects/<int:pk>/",
+        ContentSubjectDetailView.as_view(),
+        name="content-subject-detail",
+    ),
+    path(
+        "content/sections/",
+        ContentSectionListView.as_view(),
+        name="content-section-list",
+    ),
+    path(
+        "content/sections/<int:pk>/",
+        ContentSectionDetailView.as_view(),
+        name="content-section-detail",
+    ),
+    path(
+        "content/topics/",
+        ContentTopicListView.as_view(),
+        name="content-topic-list",
+    ),
+    path(
+        "content/topics/<int:pk>/",
+        ContentTopicDetailView.as_view(),
+        name="content-topic-detail",
+    ),
+    path(
+        "content/blocks/",
+        ContentBlockListView.as_view(),
+        name="content-block-list",
+    ),
+    path(
+        "content/blocks/<int:pk>/",
+        ContentBlockDetailView.as_view(),
+        name="content-block-detail",
+    ),
+    path(
+        "content/flashcards/",
+        ContentFlashcardListView.as_view(),
+        name="content-flashcard-list",
+    ),
+    path(
+        "content/flashcards/<int:pk>/",
+        ContentFlashcardDetailView.as_view(),
+        name="content-flashcard-detail",
+    ),
+    path(
+        "content/quizzes/",
+        ContentQuizListView.as_view(),
+        name="content-quiz-list",
+    ),
+    path(
+        "content/quizzes/<int:pk>/",
+        ContentQuizDetailView.as_view(),
+        name="content-quiz-detail",
+    ),
+    path(
+        "content/sources/",
+        ContentSourceListView.as_view(),
+        name="content-source-list",
+    ),
+    path(
+        "content/sources/<int:pk>/",
+        ContentSourceDetailView.as_view(),
+        name="content-source-detail",
+    ),
 ]

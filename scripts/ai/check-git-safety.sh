@@ -25,7 +25,7 @@ while IFS= read -r path; do
 
   added_lines="$(git diff --cached --unified=0 --no-ext-diff -- "$path" \
     | sed -e '/^+++/d' -e '/^+/s/^+//p')"
-  if rg -q -i -- "$secret_pattern" <<< "$added_lines"; then
+  if grep -q -i -E -- "$secret_pattern" <<< "$added_lines"; then
     echo "staged diff contains a high-confidence secret-like value: $path" >&2
     exit 1
   fi

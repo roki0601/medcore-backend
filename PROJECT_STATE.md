@@ -8,35 +8,37 @@ repository's `AGENTS.md`.
 
 - Stage: `VERIFIED` (implementation + validation); PR open, human review/merge
   pending
-- Active feature: `002-content-catalog-access`
-- Risk: `HIGH` (content access boundary and paywall composition)
+- Active feature: `004-content-api-media`
+- Risk: `HIGH` (integration credential, protected media URLs, concurrency)
 - Spec status: approved via the delegated review
-  (`.omp/decisions/2026-09-19-002-content-catalog-access-quorum.md`), spec
-  amended to the accepted contract
+  (`.omp/decisions/2026-09-19-004-content-api-media-review.md`), spec amended to
+  the accepted contract
 - Plan status: implemented as written
-- Tasks status: T001–T028 complete
-- Implementation status: complete on `feature/002-content-catalog-access`
-- Validation status: passed (see `.omp/reports/`)
+- Tasks status: T001–T020 complete
+- Implementation status: complete on `feature/004-content-api-media`
+- Validation status: passed (see `.omp/reports/2026-09-19-004-content-api-media-completion.md`)
 - Completion status: `VERIFIED`
-- Decision record: `.omp/decisions/2026-09-19-002-content-catalog-access-quorum.md`
-- Completion report: `.omp/reports/2026-09-19-002-content-catalog-access-completion.md`
+- Decision record: `.omp/decisions/2026-09-19-004-content-api-media-review.md`
+- Completion report: `.omp/reports/2026-09-19-004-content-api-media-completion.md`
 
 ## Feature order
 
 1. `001-telegram-auth-account` (merged)
-2. `002-content-catalog-access` (implemented, PR open)
-3. `004-content-api-media`
+2. `002-content-catalog-access` (merged)
+3. `004-content-api-media` (implemented, PR open)
 4. `003-learning-state`
 
-Subscription/entitlement behavior is a separate feature boundary that 002 depends
-on: `paid` Topics are unreadable until that feature ships an entitlement source.
-Do not infer paid semantics from the order above or from a draft document.
+Subscription/entitlement behavior is a separate feature boundary that 002/004
+depend on: `paid` Topics and `paid` media are unreadable until that feature ships
+an entitlement source. Do not infer paid semantics from the order above or from a
+draft document.
 
-## Preflight record (2026-09-19)
+## Preflight record (2026-09-19, feature 004)
 
 All three repositories were clean and fast-forwarded on `main` before the feature
-branch: `medcore-docs` `0b1d51c`, `medcore-backend` `e530c4f`,
-`medcore-frontend` `db3473d`.
+branch: `medcore-docs` `0b1d51c`, `medcore-backend` `d7a9584`,
+`medcore-frontend` `db3473d`. Branch `feature/004-content-api-media` was created
+from `d7a9584`; delivery commit `a1b3781`.
 
 ## Autonomous transition gate
 
@@ -65,22 +67,30 @@ rounds, write `BLOCKED` with evidence and the exact unresolved conflict.
 
 ## Next action
 
-Feature 002 is implemented and validated on
-`feature/002-content-catalog-access` (commit `52cae11`); PR
-https://github.com/roki0601/medcore-backend/pull/5 is open. Review it, then merge
+Feature 004 is implemented and validated on
+`feature/004-content-api-media` (commit `a1b3781`); PR
+https://github.com/roki0601/medcore-backend/pull/6 is open. Review it, then merge
 manually. Human review and merge are required before starting
-`004-content-api-media`. Do not push to `main` or merge from the OMP run.
+`003-learning-state`. Do not push to `main` or merge from the OMP run.
 
 Carry-forward contracts for later features:
 
-- Spec 004 owns media upload/access-url, signed URLs and the storage adapter; 002
-  ships only the `media.MediaFile` FK target and never exposes `storage_key`.
+- Spec 003 must ship the learning-owned `ON DELETE CASCADE` foreign keys to
+  Topic/Section/Quiz and the User `ON DELETE CASCADE` contract from the 001
+  decision record; quiz questions/answers are identity-stable and are never
+  deleted by the content API, so 003 owns the attempt-time policy for aggregate
+  deletion.
 - The subscriptions/paywall feature must supply the entitlement source behind
-  `apps.subscriptions.policy.has_paid_content_entitlement` before paid content is
-  served; do not add a role bypass.
-- Spec 003 must implement the learning-owned `ON DELETE CASCADE` foreign keys to
-  Topic/Section and the User `ON DELETE CASCADE` contract from the 001 decision
-  record before its learning-owned models ship.
+  `apps.subscriptions.policy.has_paid_content_entitlement` before paid content or
+  paid media is served; do not add a role bypass.
+- The concrete object-storage provider is still a deployment decision: the local
+  backend is refused outside `DEBUG`, and production media upload requires an
+  S3-compatible backend configured through the environment.
+- Deployments must exclude `/api/v1/media/upload/` and `/api/v1/media/file/`
+  from access logs (capability tokens travel in the path) and keep protected
+  storage buckets private.
+- Slug-based public URLs, bulk endpoints, async import and media processing
+  remain out of scope.
 
 ## Source-of-truth pointers
 
