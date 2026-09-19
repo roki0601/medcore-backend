@@ -6,39 +6,43 @@ repository's `AGENTS.md`.
 
 ## Current state
 
-- Stage: `VERIFIED` (implementation + validation); PR open, human review/merge
-  pending
-- Active feature: `004-content-api-media`
-- Risk: `HIGH` (integration credential, protected media URLs, concurrency)
+- Stage: `VERIFIED` (implementation + validation + live smoke); PR open, human
+  review/merge pending
+- Active feature: `003-learning-state`
+- Risk: `HIGH` (permission/ownership boundary, migrations, concurrency, scoring)
 - Spec status: approved via the delegated review
-  (`.omp/decisions/2026-09-19-004-content-api-media-review.md`), spec amended to
-  the accepted contract
-- Plan status: implemented as written
-- Tasks status: T001–T020 complete
-- Implementation status: complete on `feature/004-content-api-media`
-- Validation status: passed (see `.omp/reports/2026-09-19-004-content-api-media-completion.md`)
+  (`.omp/decisions/2026-09-19-003-learning-state-review.md`), amended to the
+  accepted contract, then corrected by the pre-implementation consistency analysis
+  recorded in the same file
+- Plan status: implemented as written (`specs/003-learning-state/tasks.md` T001-T014)
+- Tasks status: T001-T014 complete
+- Implementation status: complete on `feature/003-learning-state` (commit `1e5bf5d`)
+- Validation status: passed — ruff format/lint clean, 361 tests green (117 learning),
+  `manage.py check` clean, `makemigrations --check` clean, live smoke 64/64,
+  CI GitHub Actions run `35455508683` `success`
 - Completion status: `VERIFIED`
-- Decision record: `.omp/decisions/2026-09-19-004-content-api-media-review.md`
-- Completion report: `.omp/reports/2026-09-19-004-content-api-media-completion.md`
+- Decision record: `.omp/decisions/2026-09-19-003-learning-state-review.md`
+- Completion report: `.omp/reports/2026-09-19-003-learning-state-completion.md`
 
 ## Feature order
 
 1. `001-telegram-auth-account` (merged)
 2. `002-content-catalog-access` (merged)
-3. `004-content-api-media` (implemented, PR open)
-4. `003-learning-state`
+3. `004-content-api-media` (merged)
+4. `003-learning-state` (in progress)
 
 Subscription/entitlement behavior is a separate feature boundary that 002/004
 depend on: `paid` Topics and `paid` media are unreadable until that feature ships
 an entitlement source. Do not infer paid semantics from the order above or from a
 draft document.
 
-## Preflight record (2026-09-19, feature 004)
+## Preflight record (2026-09-19, feature 003)
 
-All three repositories were clean and fast-forwarded on `main` before the feature
-branch: `medcore-docs` `0b1d51c`, `medcore-backend` `d7a9584`,
-`medcore-frontend` `db3473d`. Branch `feature/004-content-api-media` was created
-from `d7a9584`; delivery commit `a1b3781`.
+Both in-scope repositories were clean and fast-forwarded on `main` before the
+feature branch: `medcore-docs` `0b1d51c`, `medcore-backend` `f30b1e4` (12 commits
+ahead of the stale local `main`, including the merged PR 6/7/8).
+`medcore-frontend` was not inspected (outside backend OMP scope). Branch
+`feature/003-learning-state` was created from `f30b1e4`.
 
 ## Autonomous transition gate
 
@@ -74,19 +78,27 @@ rounds, write `BLOCKED` with evidence and the exact unresolved conflict.
 
 ## Next action
 
-Feature 004 is implemented and validated on
-`feature/004-content-api-media` (commit `a1b3781`); PR
-https://github.com/roki0601/medcore-backend/pull/6 is open. Review it, then merge
-manually. Human review and merge are required before starting
-`003-learning-state`. Do not push to `main` or merge from the OMP run.
+Feature 003 is implemented and validated on `feature/003-learning-state`
+(commit `1e5bf5d`); PR https://github.com/roki0601/medcore-backend/pull/9 is open.
+Review it, then merge manually; merge from the OMP run is not allowed. Two owner
+decisions are pending: the pass threshold (register item 65) that also gates the
+score-based automatic topic completion, and whether a submitted attempt may keep
+revealing `correct_answer_ids` while retakes stay unlimited. After the merge the
+next feature boundary is subscriptions/paywall (the entitlement source).
 
 Carry-forward contracts for later features:
 
-- Spec 003 must ship the learning-owned `ON DELETE CASCADE` foreign keys to
-  Topic/Section/Quiz and the User `ON DELETE CASCADE` contract from the 001
-  decision record; quiz questions/answers are identity-stable and are never
-  deleted by the content API, so 003 owns the attempt-time policy for aggregate
-  deletion.
+- Feature 003 ships the learning-owned `ON DELETE CASCADE` foreign keys to
+  `Topic`, `ContentBlock`, `Flashcard` and `Quiz`, plus the User `ON DELETE
+  CASCADE` contract from the 001 decision record. The theory unit is the Topic's
+  published `ContentBlock` (the accepted content model has no Section inside a
+  Topic), so no learning row references `Section`; quiz children are
+  identity-stable and are never deleted by the content API, and 003 owns the
+  attempt-time grading/deletion policy.
+- The pass threshold is an open **owner** decision: register item 65 forbids
+  introducing a global pass percentage, so 003 returns only `score_percent` and
+  the per-question results, and score-based automatic topic completion stays
+  unimplemented until a threshold is accepted.
 - The subscriptions/paywall feature must supply the entitlement source behind
   `apps.subscriptions.policy.has_paid_content_entitlement` before paid content or
   paid media is served; do not add a role bypass.
