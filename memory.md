@@ -35,6 +35,9 @@
   MarkdownV2 formatting. Successful child results stay silent; only actionable
   blockers are forwarded, and an unconfirmed session is reported as a warning
   rather than a fake successful completion.
+- Backend OMP scope excludes `medcore-frontend`, which is owned by another
+  model: do not inspect, synchronize, test, or modify it. Feature preflight
+  covers only `medcore-docs` and `medcore-backend`.
 
 ## Source of truth
 

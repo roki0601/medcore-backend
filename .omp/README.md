@@ -63,21 +63,23 @@ source conflict or an unresolvable validation failure marks the task `BLOCKED`.
 
 ## New feature repository preflight
 
-Before starting a new feature, the manager must check and fast-forward all three
-MedCore repositories before entering `SPEC_REVIEW`, creating a feature branch,
-or delegating implementation:
+Before starting a new feature, the manager must check and fast-forward only
+`medcore-docs` and `medcore-backend` before entering `SPEC_REVIEW`, creating a
+feature branch, or delegating implementation:
 
 ```bash
 cd /home/roki/dev/medcore
 git -C medcore-docs pull --ff-only
 git -C medcore-backend pull --ff-only
-git -C medcore-frontend pull --ff-only
 ```
 
-Run `git status --short --branch` first in each repository. A dirty worktree,
-missing upstream, or diverged branch is a blocker to report to the owner. Do
-not bypass it with automatic stash, reset, checkout, merge, or rebase. Record
-the resulting branches and commit HEADs in the task report.
+`medcore-frontend` is owned by another model and is outside backend OMP scope.
+Do not inspect it or run `git status`, `git pull`, checkout, branch, worktree,
+tests, or modifications there. Run `git status --short --branch` first only in
+the two in-scope repositories. A dirty worktree, missing upstream, or diverged
+branch is a blocker to report to the owner. Do not bypass it with automatic
+stash, reset, checkout, merge, or rebase. Record the resulting branches and
+commit HEADs in the task report.
 
 Git safety guards are active when OMP is started through the wrapper. They block
 direct/force pushes outside an explicit feature-style branch, merges, history

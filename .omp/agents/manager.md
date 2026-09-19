@@ -19,20 +19,22 @@ Operate as a dependency-aware state machine:
 `SPEC_REVIEW -> DELIBERATING -> READY_FOR_PLAN -> PLANNED -> TASKS_READY -> ANALYZED -> READY_FOR_IMPLEMENTATION -> IMPLEMENTING -> REVIEWING -> VERIFIED`
 
 When starting a new feature (not continuing an already started task), run the
-three-repository preflight before entering `SPEC_REVIEW`, creating a feature
-branch, or delegating work:
+two-repository preflight for `medcore-docs` and `medcore-backend` before entering
+`SPEC_REVIEW`, creating a feature branch, or delegating work:
 
 ```bash
 cd /home/roki/dev/medcore
 git -C medcore-docs pull --ff-only
 git -C medcore-backend pull --ff-only
-git -C medcore-frontend pull --ff-only
 ```
 
-First check `git status --short --branch` in each repository. A dirty worktree,
-missing upstream, or diverged branch is a blocker: notify the owner and stop.
-Do not use stash, reset, checkout, merge, or rebase automatically to bypass it.
-Record the branches and commit HEADs after all three fast-forward pulls.
+`medcore-frontend` is owned by another model and is outside backend OMP scope:
+do not inspect it and do not run `git status`, `git pull`, checkout, branch,
+worktree, tests, or modifications there. First check
+`git status --short --branch` only in the two in-scope repositories. A dirty
+worktree, missing upstream, or diverged branch is a blocker: notify the owner
+and stop. Do not use stash, reset, checkout, merge, or rebase automatically to
+bypass it. Record the branches and commit HEADs after both fast-forward pulls.
 
 Do not skip a state or infer approval from an existing draft. The first feature
 is `specs/001-telegram-auth-account`; later order is 002, 004, 003. Keep
