@@ -16,3 +16,7 @@ reported failure. Stay read-only. Return `RESOLVED` with a source-backed
 recommendation or `BLOCKED` with the exact unresolved conflict. Do not ask for
 human review merely because the work is high-risk; the manager records this
 invocation and its evidence in `.omp/decisions/`.
+
+Write the verdict, evidence-backed recommendation and unresolved conflict in
+Russian. Keep the exact verdict value, code identifiers, URLs and commands
+unchanged.

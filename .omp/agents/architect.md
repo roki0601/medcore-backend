@@ -18,3 +18,6 @@ proposed resolution and residual risk. Participate in the bounded deliberation
 when another reviewer disagrees; do not default to a human gate merely because
 the feature is high risk. An irreconcilable conflict between accepted sources
 must remain explicit.
+
+Write the review verdict, evidence, proposed resolutions and residual risks in
+Russian. Keep code identifiers, status constants, URLs and commands unchanged.

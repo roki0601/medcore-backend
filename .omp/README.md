@@ -94,3 +94,11 @@ the redacted conclusion under `Мини-отчёт`. When the top-level OMP proc
 receives a standard `<task-result>` from a child agent, it also sends a separate
 mini-report for that child (`id`, role, status/verdict and summary). Rotate any
 token that was pasted into chat before storing a fresh one locally.
+
+## Agent report language
+
+All owner-facing reports from the manager and child agents — including
+completion reports, blocker notices, review verdicts, decision summaries and
+Telegram mini-reports — must be written in Russian. Keep code identifiers,
+machine-readable status values, URLs, commands and short source quotations in
+their original form when changing them would reduce precision.
