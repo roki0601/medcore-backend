@@ -18,7 +18,8 @@ repository's `AGENTS.md`.
 - Tasks status: T001-T014 complete
 - Implementation status: complete on `feature/003-learning-state` (commit `1e5bf5d`)
 - Validation status: passed — ruff format/lint clean, 361 tests green (117 learning),
-  `manage.py check` clean, `makemigrations --check` clean, live smoke 64/64
+  `manage.py check` clean, `makemigrations --check` clean, live smoke 64/64,
+  CI GitHub Actions run `35455508683` `success`
 - Completion status: `VERIFIED`
 - Decision record: `.omp/decisions/2026-09-19-003-learning-state-review.md`
 - Completion report: `.omp/reports/2026-09-19-003-learning-state-completion.md`

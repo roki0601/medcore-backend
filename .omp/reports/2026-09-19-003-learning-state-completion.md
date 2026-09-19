@@ -65,6 +65,9 @@ $ uv run python manage.py makemigrations --check --dry-run  -> No changes detect
 - Ранее (до доработок) полный smoke дал 63/64: единственный FAIL был ошибкой самого
   smoke-скрипта (`?format=openapi-json` не поддерживается этим drf-spectacular — 404), а
   не дефектом фичи; проверка схемы переведена на разбор YAML.
+- CI GitHub Actions (workflow `CI`, run `35455508683`, job `quality`, head `8e615f4`):
+  `success` — форматирование, линт, Django-проверки, проверка миграций и pytest на
+  PostgreSQL 16 + Redis 7.
 
 ## Тесты и rationale
 
