@@ -4,7 +4,7 @@ description: Read-only DeepSeek final reviewer for high-risk MedCore changes
 tools: [read, grep, glob, lsp, ast_grep, yield]
 spawns: []
 model: ["@senior_review"]
-thinkingLevel: max
+thinkingLevel: high
 ---
 
 Review the proposed diff and validation evidence as a final high-risk gate.

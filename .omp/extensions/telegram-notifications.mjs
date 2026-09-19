@@ -3,8 +3,11 @@ import { homedir } from "node:os";
 import { basename, join } from "node:path";
 
 const MAX_MESSAGE_LENGTH = 4096;
-const MINI_REPORT_LENGTH = 1800;
+const MINI_REPORT_LENGTH = 2200;
 const REQUEST_TIMEOUT_MS = 5000;
+const MARKDOWN_V2_SPECIAL_CHARACTERS = new Set(
+  "\\_*[]()~`>#+-=|{}.!".split(""),
+);
 const DEFAULT_ENV_FILE = join(
   process.env.XDG_CONFIG_HOME || join(homedir(), ".config"),
   "medcore",
@@ -68,13 +71,65 @@ export function redactNotificationText(value) {
 function limitMessage(value) {
   const text = redactNotificationText(value);
   if (text.length <= MAX_MESSAGE_LENGTH) return text;
-  return `${text.slice(0, MAX_MESSAGE_LENGTH - 32)}\n… [truncated]`;
+  return `${text.slice(0, MAX_MESSAGE_LENGTH - 42)}\n…\\[сообщение обрезано\\]`;
+}
+
+export function escapeMarkdownV2(value) {
+  return [...String(value ?? "")]
+    .map((character) =>
+      MARKDOWN_V2_SPECIAL_CHARACTERS.has(character)
+        ? `\\${character}`
+        : character,
+    )
+    .join("");
+}
+
+function escapeMarkdownV2Code(value) {
+  return String(value ?? "")
+    .replace(/\\/g, "\\\\")
+    .replace(/`/g, "\\`")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function inlineCode(value) {
+  return `\`${escapeMarkdownV2Code(value)}\``;
+}
+
+function formatReportLine(value) {
+  const line = String(value || "").trim();
+  if (!line) return "";
+
+  const heading = line.match(/^#{1,6}\s+(.+)$/);
+  if (heading) return `*${escapeMarkdownV2(heading[1])}*`;
+
+  const bullet = line.match(/^[-*+]\s+(.+)$/);
+  if (bullet) return `• ${escapeMarkdownV2(bullet[1])}`;
+
+  return escapeMarkdownV2(line);
+}
+
+export function formatNotificationReport(value) {
+  const text = redactNotificationText(value);
+  if (!text) return "";
+
+  const lines = [];
+  for (const rawLine of text.split(/\r?\n/)) {
+    const formatted = formatReportLine(rawLine);
+    if (formatted || lines.at(-1)) lines.push(formatted);
+  }
+  return lines.join("\n").trim();
 }
 
 function miniReport(value) {
-  const text = redactNotificationText(value);
+  const text = formatNotificationReport(value);
   if (text.length <= MINI_REPORT_LENGTH) return text;
-  return `${text.slice(0, MINI_REPORT_LENGTH - 18)}\n… [truncated]`;
+  const marker = "\n…\\[обрезано\\]";
+  const limit = MINI_REPORT_LENGTH - marker.length;
+  const cut = text.slice(0, limit);
+  const lastLine = cut.lastIndexOf("\n");
+  const safeCut = lastLine > limit * 0.75 ? cut.slice(0, lastLine) : cut;
+  return `${safeCut.trimEnd()}${marker}`;
 }
 
 function decodeJsonString(value) {
@@ -152,6 +207,8 @@ export async function sendTelegramMessage(
         body: JSON.stringify({
           chat_id: settings.chatId,
           text: limitMessage(text),
+          parse_mode: "MarkdownV2",
+          link_preview_options: { is_disabled: true },
         }),
         signal: controller.signal,
       },
@@ -177,11 +234,32 @@ function assistantText(message) {
 
 export function notificationText(kind, text, identity = {}) {
   const project = basename(process.cwd()) || "project";
-  const title = kind === "blocker" ? "⛔ OMP: блокер" : "✅ OMP завершил работу";
+  const title =
+    kind === "blocker"
+      ? "⛔ OMP: блокер"
+      : kind === "warning"
+        ? "⚠️ OMP: итог не подтверждён"
+        : "✅ OMP завершил работу";
   const name = identity.name || process.env.OMP_AGENT_NAME || "manager";
   const role = identity.role || process.env.OMP_AGENT_ROLE || "manager";
   const flow = identity.flow || "main";
-  return `${title}\nПроект: ${project}\nАгент: ${name}\nРоль: ${role}\nПоток: ${flow}\n\nМини-отчёт:\n${miniReport(text || "Итоговый текст отсутствует.")}`;
+  const section =
+    kind === "blocker" ? "Проблема" : kind === "warning" ? "Состояние" : "Итог";
+  const body = miniReport(text) || "Детали не переданы\\.";
+  return [
+    `*${escapeMarkdownV2(title)}*`,
+    "",
+    "━━━━━━━━━━━━━━",
+    `*Проект:* ${inlineCode(project)}`,
+    `*Агент:* ${inlineCode(name)}`,
+    `*Роль:* ${inlineCode(role)}`,
+    `*Поток:* ${inlineCode(flow)}`,
+    "",
+    `*${escapeMarkdownV2(section)}:*`,
+    body,
+    "",
+    "━━━━━━━━━━━━━━",
+  ].join("\n");
 }
 
 function extractEventText(value, depth = 0) {
@@ -198,18 +276,29 @@ function extractEventText(value, depth = 0) {
     .join("\n");
 }
 
-export default function telegramNotifications(pi) {
+export default function telegramNotifications(pi, options = {}) {
   let lastAssistantMessage = "";
-  let managerTerminalNotificationSent = false;
+  let lastAssistantStopReason = "";
+  let managerCompletionNotificationSent = false;
+  let managerBlockerNotificationSent = false;
   const notifiedSubagents = new Set();
+  const send =
+    options.send ||
+    ((text) => sendTelegramMessage(text, options.settings));
 
-  const notify = (kind, text, identity) => {
-    void sendTelegramMessage(notificationText(kind, text, identity));
+  const notify = async (kind, text, identity) => {
+    try {
+      return await send(notificationText(kind, text, identity));
+    } catch {
+      return false;
+    }
   };
 
-  pi.on("agent_start", async () => {
+  pi.on("session_start", async () => {
     lastAssistantMessage = "";
-    managerTerminalNotificationSent = false;
+    lastAssistantStopReason = "";
+    managerCompletionNotificationSent = false;
+    managerBlockerNotificationSent = false;
     notifiedSubagents.clear();
   });
 
@@ -217,12 +306,21 @@ export default function telegramNotifications(pi) {
     const text = assistantText(event?.message);
     if (!text) return;
     lastAssistantMessage = text;
+    lastAssistantStopReason = event?.message?.stopReason || "";
 
     const kind = classifyManagerMessage(text);
-    if (!kind || managerTerminalNotificationSent) return;
+    if (!kind) return;
 
-    managerTerminalNotificationSent = true;
-    notify(kind, text, { name: "manager", role: "manager", flow: "main" });
+    if (kind === "blocker") {
+      if (managerBlockerNotificationSent) return;
+      managerBlockerNotificationSent = true;
+      await notify(kind, text, { name: "manager", role: "manager", flow: "main" });
+      return;
+    }
+
+    if (managerCompletionNotificationSent) return;
+    managerCompletionNotificationSent = true;
+    await notify(kind, text, { name: "manager", role: "manager", flow: "main" });
   });
 
   pi.on("tool_execution_end", async (event) => {
@@ -230,26 +328,43 @@ export default function telegramNotifications(pi) {
     if (!result || notifiedSubagents.has(result.id)) return;
     notifiedSubagents.add(result.id);
 
-    const kind = result.verdict === "BLOCKED" || isBlockerMessage(result.summary)
-      ? "blocker"
-      : "completion";
+    const isActionable =
+      result.verdict === "BLOCKED" ||
+      result.verdict === "NEEDS_HUMAN_REVIEW" ||
+      isBlockerMessage(result.summary);
+    if (!isActionable) return;
+
     const report = [
       result.verdict ? `Вердикт: ${result.verdict}` : "",
       result.summary ? `Вывод: ${result.summary}` : "",
     ]
       .filter(Boolean)
       .join("\n");
-    notify(kind, report, {
+    await notify("blocker", report, {
       name: result.id,
       role: result.agent,
       flow: "subagent",
     });
   });
 
-  pi.on("agent_end", async () => {
-    if (managerTerminalNotificationSent) return;
-    managerTerminalNotificationSent = true;
-    notify("completion", lastAssistantMessage, {
+  pi.on("session_shutdown", async () => {
+    if (managerCompletionNotificationSent) return;
+
+    managerCompletionNotificationSent = true;
+    if (lastAssistantMessage.trim() && lastAssistantStopReason === "stop") {
+      await notify("completion", lastAssistantMessage, {
+        name: "manager",
+        role: "manager",
+        flow: "main",
+      });
+      return;
+    }
+
+    const details = lastAssistantMessage.trim()
+      ? "Результат не подтверждён: менеджер не выдал явный финальный статус.\nПоследнее сообщение:\n" +
+        lastAssistantMessage
+      : "Результат не подтверждён: менеджер не прислал итоговый текст.";
+    await notify("warning", details, {
       name: "manager",
       role: "manager",
       flow: "main",
