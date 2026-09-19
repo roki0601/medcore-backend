@@ -89,5 +89,8 @@ to model shell commands:
 The setup script stores `OMP_TELEGRAM_BOT_TOKEN` and
 `OMP_TELEGRAM_CHAT_ID` in `${XDG_CONFIG_HOME:-$HOME/.config}/medcore/omp-telegram.env`
 with mode `0600`. It sends a Telegram message for explicit blockers and the
-final OMP result. Rotate any token that was pasted into chat before storing a
-fresh one locally.
+final OMP result. Every message identifies the agent, role and flow, and puts
+the redacted conclusion under `Мини-отчёт`. When the top-level OMP process
+receives a standard `<task-result>` from a child agent, it also sends a separate
+mini-report for that child (`id`, role, status/verdict and summary). Rotate any
+token that was pasted into chat before storing a fresh one locally.

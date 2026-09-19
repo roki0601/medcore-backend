@@ -7,6 +7,8 @@ import test from "node:test";
 import {
   isBlockerMessage,
   looksLikeFinalMessage,
+  notificationText,
+  parseSubagentCompletion,
   parseEnvFile,
   readTelegramSettings,
   redactNotificationText,
@@ -62,6 +64,40 @@ test("sends a bounded plain-text Telegram message", async () => {
   assert.match(request.url, /api\.telegram\.org\/bot/);
   assert.equal(JSON.parse(request.options.body).chat_id, "974111221");
   assert.equal(JSON.parse(request.options.body).text, "STATUS: DONE\nPR: none");
+});
+
+test("identifies the manager and labels its text as a mini-report", () => {
+  const text = notificationText("completion", "STATUS: DONE\nPR: none", {
+    name: "manager",
+    role: "manager",
+    flow: "main",
+  });
+
+  assert.match(text, /Агент: manager/);
+  assert.match(text, /Роль: manager/);
+  assert.match(text, /Мини-отчёт:/);
+  assert.match(text, /STATUS: DONE/);
+});
+
+test("extracts a completed subagent identity and concise conclusion", () => {
+  const result = parseSubagentCompletion(`
+    ## Completed (1)
+    <task-result id="WatchdogEscalation002" agent="watchdog" status="completed">
+      {"verdict":"BLOCKED","summary":"Spec 002 still has unresolved contract questions."}
+    </task-result>
+  `);
+
+  assert.deepEqual(result, {
+    id: "WatchdogEscalation002",
+    agent: "watchdog",
+    status: "completed",
+    verdict: "BLOCKED",
+    summary: "Spec 002 still has unresolved contract questions.",
+  });
+});
+
+test("ignores ordinary tool output without a completed subagent result", () => {
+  assert.equal(parseSubagentCompletion("reading specs/002-content-catalog-access"), null);
 });
 
 test("setup-file fixture remains readable only by this user", async () => {

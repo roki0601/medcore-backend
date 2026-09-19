@@ -3,6 +3,7 @@ import { homedir } from "node:os";
 import { basename, join } from "node:path";
 
 const MAX_MESSAGE_LENGTH = 4096;
+const MINI_REPORT_LENGTH = 1800;
 const REQUEST_TIMEOUT_MS = 5000;
 const DEFAULT_ENV_FILE = join(
   process.env.XDG_CONFIG_HOME || join(homedir(), ".config"),
@@ -70,6 +71,49 @@ function limitMessage(value) {
   return `${text.slice(0, MAX_MESSAGE_LENGTH - 32)}\n… [truncated]`;
 }
 
+function miniReport(value) {
+  const text = redactNotificationText(value);
+  if (text.length <= MINI_REPORT_LENGTH) return text;
+  return `${text.slice(0, MINI_REPORT_LENGTH - 18)}\n… [truncated]`;
+}
+
+function decodeJsonString(value) {
+  try {
+    return JSON.parse(`"${value}"`);
+  } catch {
+    return value.replace(/\\"/g, '"').replace(/\\n/g, "\n");
+  }
+}
+
+function taskResultAttribute(text, name) {
+  const match = text.match(
+    new RegExp(`<task-result\\b[^>]*\\b${name}=["']([^"']+)["']`, "i"),
+  );
+  return match?.[1] || "";
+}
+
+export function parseSubagentCompletion(value) {
+  const text = String(value || "");
+  if (!/<task-result\b/i.test(text)) return null;
+
+  const id = taskResultAttribute(text, "id");
+  const agent = taskResultAttribute(text, "agent");
+  const status = taskResultAttribute(text, "status");
+  if (!id || !agent || !status) return null;
+
+  const verdict = text.match(
+    /["']?verdict["']?\s*:\s*["'](READY|BLOCKED|NEEDS_HUMAN_REVIEW|RESOLVED)["']/i,
+  )?.[1]?.toUpperCase() || "";
+  const summaryMatch = text.match(
+    /["']summary["']\s*:\s*"((?:\\.|[^"\\])*)"/i,
+  );
+  const summary = summaryMatch
+    ? decodeJsonString(summaryMatch[1])
+    : miniReport(text.replace(/<[^>]+>/g, "")).trim();
+
+  return { id, agent, status, verdict, summary };
+}
+
 export function isBlockerMessage(value) {
   const text = String(value || "");
   if (
@@ -129,18 +173,36 @@ function assistantText(message) {
     .join("");
 }
 
-function notificationText(kind, text) {
+export function notificationText(kind, text, identity = {}) {
   const project = basename(process.cwd()) || "project";
   const title = kind === "blocker" ? "⛔ OMP blocker" : "✅ OMP завершил работу";
-  return `${title}\nПроект: ${project}\n\n${text || "Итоговый текст отсутствует."}`;
+  const name = identity.name || process.env.OMP_AGENT_NAME || "manager";
+  const role = identity.role || process.env.OMP_AGENT_ROLE || "manager";
+  const flow = identity.flow || "main";
+  return `${title}\nПроект: ${project}\nАгент: ${name}\nРоль: ${role}\nПоток: ${flow}\n\nМини-отчёт:\n${miniReport(text || "Итоговый текст отсутствует.")}`;
+}
+
+function extractEventText(value, depth = 0) {
+  if (depth > 3 || value == null) return "";
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) {
+    return value.map((item) => extractEventText(item, depth + 1)).join("\n");
+  }
+  if (typeof value !== "object") return "";
+
+  return ["result", "output", "text", "content", "response", "resultText"]
+    .map((key) => extractEventText(value[key], depth + 1))
+    .filter(Boolean)
+    .join("\n");
 }
 
 export default function telegramNotifications(pi) {
   let lastAssistantMessage = "";
   let finalNotificationSent = false;
+  const notifiedSubagents = new Set();
 
-  const notify = (kind, text) => {
-    void sendTelegramMessage(notificationText(kind, text));
+  const notify = (kind, text, identity) => {
+    void sendTelegramMessage(notificationText(kind, text, identity));
   };
 
   pi.on("agent_start", async () => {
@@ -155,13 +217,38 @@ export default function telegramNotifications(pi) {
 
     if (isBlockerMessage(text)) notify("blocker", text);
     if (looksLikeFinalMessage(text)) {
-      notify("completion", text);
+      notify("completion", text, { name: "manager", role: "manager", flow: "main" });
       finalNotificationSent = true;
     }
   });
 
+  pi.on("tool_execution_end", async (event) => {
+    const result = parseSubagentCompletion(extractEventText(event));
+    if (!result || notifiedSubagents.has(result.id)) return;
+    notifiedSubagents.add(result.id);
+
+    const kind = result.verdict === "BLOCKED" || isBlockerMessage(result.summary)
+      ? "blocker"
+      : "completion";
+    const report = [
+      result.verdict ? `Вердикт: ${result.verdict}` : "",
+      result.summary ? `Вывод: ${result.summary}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+    notify(kind, report, {
+      name: result.id,
+      role: result.agent,
+      flow: "subagent",
+    });
+  });
+
   pi.on("agent_end", async () => {
     if (finalNotificationSent) return;
-    notify("completion", lastAssistantMessage);
+    notify("completion", lastAssistantMessage, {
+      name: "manager",
+      role: "manager",
+      flow: "main",
+    });
   });
 }
