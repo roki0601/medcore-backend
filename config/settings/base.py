@@ -66,6 +66,9 @@ THROTTLE_RATES = {
     "refresh": "30/min",
     "refresh_session": "30/min",
     "account_mutation": "10/min",
+    "catalog": "120/min",
+    "content_read": "60/min",
+    "search": "60/min",
 }
 
 
@@ -174,6 +177,7 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_AUTHENTICATION_CLASSES": AUTHENTICATION_CLASSES,
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
+    "DEFAULT_PAGINATION_CLASS": "apps.common.pagination.StandardPagination",
     "DEFAULT_THROTTLE_CLASSES": ("rest_framework.throttling.ScopedRateThrottle",),
     "DEFAULT_THROTTLE_RATES": THROTTLE_RATES,
     "EXCEPTION_HANDLER": "apps.common.exceptions.exception_handler",

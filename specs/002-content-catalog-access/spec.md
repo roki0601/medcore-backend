@@ -1,8 +1,10 @@
 # Spec: Content catalog and Topic access
 
-Status: Draft
+Status: Approved for implementation (delegated review 2026-09-19,
+`.omp/decisions/2026-09-19-002-content-catalog-access-quorum.md`)
 
-Owning apps: content, common, subscriptions policy boundary
+Owning apps: content, media (MediaFile FK target only), common,
+subscriptions policy boundary
 
 Risk: High
 
@@ -97,7 +99,9 @@ Acceptance scenarios:
 2. Given a markdown block, when editor sets position and status, then the block
    appears in deterministic order only after it is published.
 3. Given an image block with private media, when an authorized client reads it,
-   then the body contains a short-lived signed URL rather than a storage secret.
+   then the body contains only a safe media reference and never a storage
+   secret. Signed URL issuance is delivered by spec 004 (see acceptance
+   criterion 9); 002 proves the reference and the absence of storage keys.
 
 ### User Story 4 — source attribution (P2)
 
@@ -129,7 +133,10 @@ Acceptance scenarios:
 5. Topic is the main access boundary. No child ACL table is introduced.
 6. Topic demo gives anonymous access according to ADR 0007.
 7. A free or paid Topic may expose only child objects marked
-   is_demo_preview to anonymous users.
+   is_demo_preview to anonymous users. When at least one published
+   is_demo_preview block exists, the anonymous content response contains
+   exactly those blocks; when none exists, the full body requires
+   authentication and the request is rejected with 401.
 8. Catalog metadata may be public but must not contain protected body/content.
 9. Only Topic and child entities with published visibility are returned by
    user-facing content endpoints.
@@ -137,8 +144,10 @@ Acceptance scenarios:
     generated and later be reviewed/published.
 11. ContentBlock type records are data entities; the MVP seeds markdown, image
     and callout and does not accept unknown types through the public API.
-12. Markdown is the only text format. Raw HTML is rejected or sanitized away;
-    the final sanitizer must not allow executable content.
+12. Markdown is the only text format. Raw HTML is rejected at write time; no
+    server-side renderer or sanitizer is introduced in 002 and the backend
+    never renders Markdown. The rendering boundary owns render-time
+    sanitization.
 13. ContentBlock order is determined by position within one Topic.
 14. Source is optional. Source deletion detaches relations without deleting
     content.
@@ -154,7 +163,10 @@ Acceptance scenarios:
   preview spec explicitly authorizes it.
 - Anonymous requests never create learning state.
 - access_level values are constrained to demo/free/paid.
-- Topic deletion cannot cascade outside the Topic aggregate.
+- Topic deletion removes only the Topic aggregate: it cannot affect sibling
+  Topic/Section/Subject rows. Learning-owned rows that reference Topic/Section
+  are removed by their owning spec 003 migrations through a database
+  `ON DELETE CASCADE`; `content` never imports or calls `learning`.
 
 ## Data model
 
@@ -214,11 +226,45 @@ Acceptance scenarios:
 - author, year, url, note: optional.
 - M2M relations to Topic and ContentBlock.
 
+### Data model contracts (delegated review 2026-09-19)
+
+- Slug: generated from title in the same transaction; unique per model with a
+  deterministic `-N` suffix on collision. 002 serves numeric IDs only; public
+  slug routing, manual override and redirect/history remain deferred.
+- Position: integer, unique per `(parent, position)`. When omitted the service
+  locks the parent row and assigns `max(position) + 1`; ordering is
+  `(position, id)`. An explicit duplicate is rejected with 409
+  `CONTENT_CONFLICT`.
+- ContentBlock status is a set, not a linear state machine: editor/admin may set
+  any of draft/generated/reviewed/published. `published_at` is set to server UTC
+  time on transition to published and cleared when the block leaves published;
+  it is never client-supplied. 409 `INVALID_CONTENT_STATE` is reserved for
+  publish-time precondition failures (missing body or missing media).
+- Controlled values (`access_level`, `status`, `source_type`) are `TextChoices`
+  plus database `CheckConstraint`s.
+- MediaFile (owned by `media`) carries only the spec 004 metadata fields
+  (`storage_key`, `original_name`, `mime_type`, `size_bytes`, `checksum`,
+  `visibility`, timestamps). 002 creates this FK target and nothing else;
+  upload-url/access-url/storage adapter stay in spec 004. A MediaFile row is not
+  proof that a storage object exists.
+- FK deletion matrix: `ContentBlock.topic` CASCADE; `Topic.section` and
+  `Section.subject` PROTECT; `ContentBlock.block_type` PROTECT;
+  `ContentBlock.media` SET_NULL; `ContentBlock.reviewed_by` SET_NULL; Source M2M
+  through tables CASCADE. Topic deletion removes the Topic and owned children in
+  one transaction and never touches media storage.
+
 ## API
 
 All URLs use /api/v1/, plural resource names and trailing slashes. Numeric IDs
 are canonical for backend operations. Slug URL stability is additive and does
 not replace IDs.
+
+002 exposes read endpoints only. Content authoring is performed through Django
+Admin and the content services; content REST CRUD, the integration key and media
+endpoints belong to spec 004 and are not implemented here. Every endpoint
+declares its own permission because the global DRF default is `IsAuthenticated`;
+public catalog and search endpoints are explicitly anonymous, and list endpoints
+use page-number pagination with default page size 20 and maximum 100.
 
 ### Public catalog
 
@@ -231,8 +277,9 @@ not replace IDs.
 Authentication: anonymous allowed.
 
 Response includes safe metadata, status visible to the catalog policy, access
-level, ordering and demo availability. Protected body and private storage keys
-are excluded.
+level, ordering and demo availability (`has_demo_preview` is true when at least
+one published `is_demo_preview` block exists). Protected body and private
+storage keys are excluded.
 
 ### Topic content
 
@@ -241,7 +288,13 @@ are excluded.
 Authentication/access: evaluated by Topic access policy.
 
 Response returns ordered published ContentBlock records that the actor may
-read. Child demo preview filtering is applied for anonymous access.
+read. Child demo preview filtering is applied for anonymous access:
+`demo` topics return all published blocks; `free`/`paid` topics return exactly
+the published `is_demo_preview` blocks when at least one exists, otherwise 401
+`AUTHENTICATION_REQUIRED`. Draft/generated/reviewed topics are 404. Authenticated
+users without entitlement on a `paid` topic receive 403
+`TOPIC_ENTITLEMENT_REQUIRED`. Image blocks expose only a safe media reference;
+signed URL issuance is spec 004.
 
 ### Sources
 
@@ -267,20 +320,26 @@ search and ranking are out of scope.
 | delete Topic | deny | deny | according to CMS policy | allow |
 
 Editor/admin CMS access is separate from user-facing paid entitlement. A CMS
-preview must not silently change the user-facing access policy.
+preview must not silently change the user-facing access policy. The CMS write
+and delete rows describe the Django Admin/content-service surface and the future
+spec 004 REST surface; editor/admin role never bypasses the user-facing paid
+policy, and 002 exposes no write endpoints.
 
 ## Validation
 
 - titles reject null/empty/whitespace-only values.
 - relation IDs must belong to the expected parent.
 - access_level/status/type values are controlled values.
-- position is an integer; duplicate positions are resolved deterministically by
-  the service or rejected according to the final ordering contract.
+- position is an integer, unique per `(parent, position)`; omitted position is
+  assigned deterministically by the service and an explicit duplicate is
+  rejected with 409 CONTENT_CONFLICT.
 - markdown/callout body is non-empty.
-- image block requires a valid Media/File reference.
-- raw HTML and unsafe media content are rejected or sanitized.
+- image block requires a valid Media/File reference at write and publish time.
+- raw HTML tags and unsafe URL schemes in markdown are rejected at write time
+  with 422 VALIDATION_ERROR; no server-side sanitizer is added.
 - Source URL, when present, is validated as a URL.
-- only editor/admin may set workflow status or published_at.
+- only editor/admin may set workflow status or published_at; published_at is
+  server-assigned.
 
 ## Errors
 
@@ -290,7 +349,7 @@ Use the backend envelope with code, detail and optional fields.
 |---|---:|---|
 | missing parent or resource | 404 | RESOURCE_NOT_FOUND |
 | inaccessible paid body | 403 | TOPIC_ENTITLEMENT_REQUIRED |
-| anonymous free body request | 401 | AUTHENTICATION_REQUIRED |
+| anonymous free/paid body without any published demo preview | 401 | AUTHENTICATION_REQUIRED |
 | draft content in user API | 404 | RESOURCE_NOT_FOUND |
 | invalid parent relation | 422 | INVALID_RELATION |
 | invalid status transition | 409 | INVALID_CONTENT_STATE |
@@ -325,10 +384,11 @@ policy treats it as unavailable.
 
 ## Concurrency
 
-- Database constraints protect parent ownership, access enum and slug uniqueness
-  within the chosen scope.
-- Concurrent Topic creation under one Section cannot produce nondeterministic
-  visible ordering.
+- Database constraints protect parent ownership, access enum, `(parent,
+  position)` uniqueness and per-model slug uniqueness.
+- Concurrent Topic/ContentBlock creation under one parent cannot produce
+  nondeterministic visible ordering (parent row lock plus deterministic
+  assignment).
 - Concurrent publication uses service transaction and final database state,
   not stale serializer input.
 
@@ -342,7 +402,8 @@ are synchronous under spec 004.
 - Backend, not frontend, enforces Topic access.
 - Content serializers never expose storage credentials, raw internal flags or
   unpublished body to user-facing actors.
-- Markdown is sanitized at the rendering/content boundary.
+- Markdown is never rendered by the backend; unsafe markup is rejected at
+  write time and the frontend rendering boundary owns render-time sanitization.
 - Rate limits apply to public catalog/search and content endpoints.
 - Editor/admin audit context is logged without sensitive body or credentials.
 
@@ -361,15 +422,20 @@ are synchronous under spec 004.
 1. The hierarchy can represent multiple Subjects, Sections and Topics with only
    title as the required user-provided field.
 2. User API never returns unpublished or unauthorized body.
-3. Topic access matrix matches demo/free/paid rules.
+3. Topic access matrix matches demo/free/paid rules. The `demo`, `free` and
+   `paid`-without-entitlement rows are verified in 002; the `paid`-with-
+   entitlement row is proven through the subscriptions policy seam and ships
+   enabled by the separate subscriptions feature.
 4. Anonymous demo never creates UserTopicProgress, FlashcardReview or
-   QuizAttempt.
+   QuizAttempt. Those models do not exist in 002; the invariant is owned by
+   spec 003 and 002 only guarantees it writes no learning state.
 5. ContentBlock ordering and the three MVP block types are deterministic.
 6. Sources remain optional and can be attached to Topic or ContentBlock.
 7. Topic deletion removes only the Topic aggregate and owned children.
 8. Catalog, topic content, search and error schemas are in OpenAPI.
 9. Private/paid media is represented only by access-checked signed URL behavior
-   from spec 004.
+   from spec 004. 002 delivers the FK reference and never exposes storage keys;
+   URL issuance itself is verified in spec 004.
 
 ## Test scenarios
 
@@ -377,10 +443,12 @@ are synchronous under spec 004.
 - Catalog visibility for anonymous, free and paid topics.
 - Demo preview filtering inside free/paid Topic.
 - Draft/generated/reviewed/published visibility.
-- Markdown, image and callout validation/sanitization.
+- Markdown, image and callout validation, raw-HTML rejection and storage-key
+  non-exposure.
 - Ordering and duplicate position behavior.
 - Source attach/detach/delete behavior.
-- Editor/admin permissions and user-facing paywall.
+- Editor/admin permissions and user-facing paywall (deny path plus policy-seam
+  allow path).
 - Topic cascade deletion and sibling preservation.
 - Search filters, pagination and no body leakage.
 - Concurrent parent/slug/order writes.
@@ -388,8 +456,10 @@ are synchronous under spec 004.
 ## Dependencies
 
 - users auth from spec 001.
-- media model and signed URL contract from spec 004.
-- subscriptions access policy boundary; payment semantics are deferred.
+- media model and signed URL contract from spec 004; 002 creates only the
+  MediaFile FK target (metadata fields) and defers upload/access-url/storage.
+- subscriptions access policy boundary; payment semantics are deferred. 002
+  ships the policy interface and the deny-by-default result.
 - PostgreSQL migrations and DRF/OpenAPI.
 
 ## Open questions
