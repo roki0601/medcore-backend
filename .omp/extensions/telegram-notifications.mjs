@@ -96,17 +96,104 @@ function inlineCode(value) {
   return `\`${escapeMarkdownV2Code(value)}\``;
 }
 
+function isEscapedAt(value, index) {
+  let backslashes = 0;
+  for (let cursor = index - 1; cursor >= 0 && value[cursor] === "\\"; cursor -= 1) {
+    backslashes += 1;
+  }
+  return backslashes % 2 === 1;
+}
+
+function findUnescaped(value, delimiter, start) {
+  let index = value.indexOf(delimiter, start);
+  while (index !== -1) {
+    if (!isEscapedAt(value, index)) return index;
+    index = value.indexOf(delimiter, index + delimiter.length);
+  }
+  return -1;
+}
+
+function findBoldClosing(value, start) {
+  let index = start;
+  while (index < value.length) {
+    if (value[index] === "`" && !isEscapedAt(value, index)) {
+      const codeClosing = findUnescaped(value, "`", index + 1);
+      if (codeClosing === -1) return -1;
+      index = codeClosing + 1;
+      continue;
+    }
+    if (
+      value.startsWith("**", index) &&
+      !isEscapedAt(value, index)
+    ) {
+      return index;
+    }
+    index += 1;
+  }
+  return -1;
+}
+
+function formatInlineMarkdown(value, { allowBold = true } = {}) {
+  const text = String(value ?? "");
+  let output = "";
+  let plainStart = 0;
+  let index = 0;
+
+  const appendPlainText = (end) => {
+    if (end > plainStart) {
+      output += escapeMarkdownV2(text.slice(plainStart, end));
+    }
+  };
+
+  while (index < text.length) {
+    if (
+      allowBold &&
+      text.startsWith("**", index) &&
+      !isEscapedAt(text, index)
+    ) {
+      const closing = findBoldClosing(text, index + 2);
+      if (closing > index + 2) {
+        appendPlainText(index);
+        output += `*${formatInlineMarkdown(text.slice(index + 2, closing), {
+          allowBold: false,
+        })}*`;
+        index = closing + 2;
+        plainStart = index;
+        continue;
+      }
+    }
+
+    if (text[index] === "`" && !isEscapedAt(text, index)) {
+      const closing = findUnescaped(text, "`", index + 1);
+      if (closing > index + 1) {
+        appendPlainText(index);
+        output += inlineCode(text.slice(index + 1, closing));
+        index = closing + 1;
+        plainStart = index;
+        continue;
+      }
+    }
+
+    index += 1;
+  }
+
+  appendPlainText(text.length);
+  return output;
+}
+
 function formatReportLine(value) {
   const line = String(value || "").trim();
   if (!line) return "";
 
   const heading = line.match(/^#{1,6}\s+(.+)$/);
-  if (heading) return `*${escapeMarkdownV2(heading[1])}*`;
+  if (heading) {
+    return `*${formatInlineMarkdown(heading[1], { allowBold: false })}*`;
+  }
 
   const bullet = line.match(/^[-*+]\s+(.+)$/);
-  if (bullet) return `• ${escapeMarkdownV2(bullet[1])}`;
+  if (bullet) return `• ${formatInlineMarkdown(bullet[1])}`;
 
-  return escapeMarkdownV2(line);
+  return formatInlineMarkdown(line);
 }
 
 export function formatNotificationReport(value) {
