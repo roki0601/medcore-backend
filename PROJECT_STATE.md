@@ -66,8 +66,10 @@ rounds, write `BLOCKED` with evidence and the exact unresolved conflict.
 ## Next action
 
 Feature 002 is implemented and validated on
-`feature/002-content-catalog-access`; review the PR, then merge manually. Human
-review and merge are required before starting `004-content-api-media`.
+`feature/002-content-catalog-access` (commit `52cae11`); PR
+https://github.com/roki0601/medcore-backend/pull/5 is open. Review it, then merge
+manually. Human review and merge are required before starting
+`004-content-api-media`. Do not push to `main` or merge from the OMP run.
 
 Carry-forward contracts for later features:
 

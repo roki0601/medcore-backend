@@ -8,6 +8,8 @@
 - Tasks: `specs/002-content-catalog-access/tasks.md` (T001–T028 complete)
 - Status: `VERIFIED` for implementation and validation; PR open, human
   review/merge pending
+- Commit: `52cae11`
+- PR: https://github.com/roki0601/medcore-backend/pull/5
 - Spec: `specs/002-content-catalog-access/spec.md` amended to the accepted
   contract (Status: Approved for implementation)
 
