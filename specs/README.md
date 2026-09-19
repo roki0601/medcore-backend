@@ -9,8 +9,13 @@
 
 1. [001 — Telegram auth and account](001-telegram-auth-account/spec.md)
 2. [002 — Content catalog and access](002-content-catalog-access/spec.md)
-3. [003 — Learning state](003-learning-state/spec.md)
-4. [004 — Content API and media](004-content-api-media/spec.md)
+3. [004 — Content API and media](004-content-api-media/spec.md)
+4. [003 — Learning state](003-learning-state/spec.md)
+
+`004` идёт перед `003`: learning использует Flashcard/Quiz/Question/Answer,
+которые принадлежат `content`, а их authoring API поставляет `004`
+(зафиксировано в `../PROJECT_STATE.md` и
+`../.omp/decisions/2026-09-19-004-content-api-media-review.md`).
 
 После review каждой spec отдельно создаются plan.md и tasks.md через Spec Kit.
 При делегированном review решение и найденные блокеры сначала фиксируются в

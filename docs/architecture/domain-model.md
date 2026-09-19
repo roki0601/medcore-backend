@@ -34,9 +34,9 @@
 Subject 1 ─── N Section 1 ─── N Topic
                               ├── 0..N ContentBlock ─── 1 ContentBlockType
                               ├── 0..N Flashcard
-                              └── 0..N Quiz (multiplicity policy TBD)
-                                      └── 0..N QuizQuestion (minimum TBD)
-                                              └── 1..N QuizAnswer (minimum TBD)
+                              └── 0..N Quiz
+                                      └── 1..N QuizQuestion
+                                              └── 2..N QuizAnswer
 
 Source 0..N ── M:N ── Topic / ContentBlock / Flashcard / QuizQuestion
 
@@ -49,10 +49,13 @@ User 1 ─── 0..N Subscription ──────── 1 Plan
 User 1 ─── 0..N RefreshToken/Session
 ```
 
+Cardinality minima and multiplicity are now fixed by spec 004 (Business rules
+16-17, `.omp/decisions/2026-09-19-004-content-api-media-review.md` §3/§6): a
+Topic has 0..N Quiz, a Quiz keeps at least one QuizQuestion, and a QuizQuestion
+keeps at least two QuizAnswer rows with at least one correct answer.
+
 Следующие cardinalities требуют отдельной фиксации до соответствующих specs:
 
-- какие минимумы нужны для Quiz/QuizQuestion/QuizAnswer и может ли Topic иметь
-  больше одного Quiz;
 - API/CMS flow, orphan lifecycle и выдача Flashcard без Topic;
 - область и uniqueness slug;
 - exact relation Media/File с content entities.
@@ -177,7 +180,9 @@ trial и другие entitlement types могут расширить policy п�
 - one `UserTopicProgress` per user/topic;
 - one current `FlashcardReview` per user/flashcard;
 - all quiz attempts are retained, best score is derived;
-- one correct QuizAnswer per QuizQuestion on MVP;
+- a `QuizQuestion` may have one or several correct `QuizAnswer` rows (ADR 0008;
+  corrected 2026-09-19 per
+  `.omp/decisions/2026-09-19-004-content-api-media-review.md`);
 - no fixed answer count of four;
 - all Topic content relations are optional unless a feature spec explicitly
   requires otherwise;

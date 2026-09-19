@@ -60,6 +60,42 @@ SIMPLE_JWT = {
 
 AUTHENTICATION_CLASSES = ("apps.users.authentication.VersionedJWTAuthentication",)
 
+# One environment-managed integration credential for the external content API.
+# An unset/empty value denies every integration request (fail closed).
+MEDCORE_CONTENT_API_KEY = os.environ.get("MEDCORE_CONTENT_API_KEY", "")
+
+# Provider-neutral object storage for media. ``local`` is a dev/test backend and
+# is refused by a Django system check when DEBUG is False; ``s3`` uses the
+# optional ``storage-s3`` dependency group.
+MEDIA_STORAGE_BACKEND = os.environ.get("MEDIA_STORAGE_BACKEND", "local")
+MEDIA_STORAGE_ROOT = os.environ.get(
+    "MEDIA_STORAGE_ROOT", str(BASE_DIR / "media-storage")
+)
+MEDIA_S3_ENDPOINT_URL = os.environ.get("MEDIA_S3_ENDPOINT_URL", "")
+MEDIA_S3_BUCKET = os.environ.get("MEDIA_S3_BUCKET", "")
+MEDIA_S3_REGION = os.environ.get("MEDIA_S3_REGION", "us-east-1")
+MEDIA_S3_ACCESS_KEY = os.environ.get("MEDIA_S3_ACCESS_KEY", "")
+MEDIA_S3_SECRET_KEY = os.environ.get("MEDIA_S3_SECRET_KEY", "")
+MEDIA_S3_ADDRESSING_STYLE = os.environ.get("MEDIA_S3_ADDRESSING_STYLE", "path")
+MEDIA_ALLOWED_MIME_TYPES = ("image/png", "image/jpeg", "image/webp", "image/gif")
+MEDIA_MAX_UPLOAD_BYTES = int(
+    os.environ.get("MEDIA_MAX_UPLOAD_BYTES", str(5 * 1024 * 1024))
+)
+# Django's request-body limits must not be tighter than the declared media
+# limit: the 2.5 MB defaults would reject a legal 3-5 MiB upload with
+# RequestDataTooBig (400, outside the error envelope) before the media view sees
+# it. Both limits derive from MEDIA_MAX_UPLOAD_BYTES.
+DATA_UPLOAD_MAX_MEMORY_SIZE = MEDIA_MAX_UPLOAD_BYTES
+FILE_UPLOAD_MAX_MEMORY_SIZE = MEDIA_MAX_UPLOAD_BYTES
+MEDIA_UPLOAD_URL_TTL = int(os.environ.get("MEDIA_UPLOAD_URL_TTL", "600"))
+MEDIA_ACCESS_URL_TTL = int(os.environ.get("MEDIA_ACCESS_URL_TTL", "600"))
+MEDIA_UPLOAD_TOKEN_SALT = "medcore.media.upload"
+MEDIA_ACCESS_TOKEN_SALT = "medcore.media.access"
+# The two content-owned media decisions reached from ``apps.media`` through
+# ``import_string``, so that the media app never imports the content app.
+MEDIA_ACCESS_POLICY_PROVIDER = "apps.content.media_policy.decide_media_access"
+MEDIA_DELETE_GUARD_PROVIDER = "apps.content.media_policy.guard_media_deletion"
+
 THROTTLE_RATES = {
     "telegram_login": "10/min",
     "telegram_login_user": "5/min",
@@ -69,6 +105,10 @@ THROTTLE_RATES = {
     "catalog": "120/min",
     "content_read": "60/min",
     "search": "60/min",
+    "integration_write": "120/min",
+    "media_upload": "30/min",
+    "media_metadata": "60/min",
+    "media_access": "60/min",
 }
 
 

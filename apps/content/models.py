@@ -39,6 +39,7 @@ class Subject(TimeStampedModel):
     description = models.TextField(blank=True, default="")
     slug = models.SlugField(max_length=255, unique=True)
     position = models.PositiveIntegerField()
+    external_id = models.CharField(max_length=255, null=True, blank=True, unique=True)
 
     class Meta:
         ordering = ("position", "id")
@@ -57,6 +58,7 @@ class Section(TimeStampedModel):
     description = models.TextField(blank=True, default="")
     slug = models.SlugField(max_length=255, unique=True)
     position = models.PositiveIntegerField()
+    external_id = models.CharField(max_length=255, null=True, blank=True, unique=True)
 
     class Meta:
         ordering = ("position", "id")
@@ -100,6 +102,7 @@ class Topic(TimeStampedModel):
         choices=AccessLevel.choices,
         default=AccessLevel.DEMO,
     )
+    external_id = models.CharField(max_length=255, null=True, blank=True, unique=True)
 
     class Meta:
         ordering = ("position", "id")
@@ -179,6 +182,7 @@ class ContentBlock(TimeStampedModel):
         related_name="reviewed_content_blocks",
     )
     published_at = models.DateTimeField(null=True, blank=True)
+    external_id = models.CharField(max_length=255, null=True, blank=True, unique=True)
 
     class Meta:
         ordering = ("position", "id")
@@ -195,6 +199,112 @@ class ContentBlock(TimeStampedModel):
 
     def __str__(self) -> str:
         return f"ContentBlock {self.pk}"
+
+
+class Flashcard(TimeStampedModel):
+    """A question/answer card owned by one Topic.
+
+    There is no status field: visibility follows the Topic, and presentation
+    order is the client's concern.
+    """
+
+    topic = models.ForeignKey(
+        Topic,
+        on_delete=models.CASCADE,
+        related_name="flashcards",
+    )
+    question = models.TextField(validators=(validate_non_blank,))
+    answer = models.TextField(validators=(validate_non_blank,))
+    position = models.PositiveIntegerField()
+    external_id = models.CharField(max_length=255, null=True, blank=True, unique=True)
+
+    class Meta:
+        ordering = ("position", "id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("topic", "position"),
+                name="content_flashcard_unique_topic_position",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"Flashcard {self.pk}"
+
+
+class Quiz(TimeStampedModel):
+    """A quiz aggregate owned by one Topic.
+
+    ``QuizQuestion`` and ``QuizAnswer`` are written only through this aggregate;
+    the write service enforces at least one question, at least two answers per
+    question and at least one correct answer per question.
+    """
+
+    topic = models.ForeignKey(
+        Topic,
+        on_delete=models.CASCADE,
+        related_name="quizzes",
+    )
+    title = models.CharField(max_length=255, validators=TITLE_VALIDATORS)
+    description = models.TextField(blank=True, default="")
+    position = models.PositiveIntegerField()
+    external_id = models.CharField(max_length=255, null=True, blank=True, unique=True)
+
+    class Meta:
+        ordering = ("position", "id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("topic", "position"),
+                name="content_quiz_unique_topic_position",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return self.title
+
+
+class QuizQuestion(TimeStampedModel):
+    quiz = models.ForeignKey(
+        Quiz,
+        on_delete=models.CASCADE,
+        related_name="questions",
+    )
+    text = models.TextField(validators=(validate_non_blank,))
+    position = models.PositiveIntegerField()
+
+    class Meta:
+        ordering = ("position", "id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("quiz", "position"),
+                name="content_quizquestion_unique_quiz_position",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"QuizQuestion {self.pk}"
+
+
+class QuizAnswer(TimeStampedModel):
+    question = models.ForeignKey(
+        QuizQuestion,
+        on_delete=models.CASCADE,
+        related_name="answers",
+    )
+    text = models.TextField(validators=(validate_non_blank,))
+    is_correct = models.BooleanField(default=False)
+    position = models.PositiveIntegerField()
+
+    class Meta:
+        ordering = ("position", "id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("question", "position"),
+                name="content_quizanswer_unique_question_position",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"QuizAnswer {self.pk}"
 
 
 class Source(TimeStampedModel):
@@ -222,6 +332,17 @@ class Source(TimeStampedModel):
         blank=True,
         related_name="sources",
     )
+    flashcards = models.ManyToManyField(
+        Flashcard,
+        blank=True,
+        related_name="sources",
+    )
+    questions = models.ManyToManyField(
+        QuizQuestion,
+        blank=True,
+        related_name="sources",
+    )
+    external_id = models.CharField(max_length=255, null=True, blank=True, unique=True)
 
     class Meta:
         ordering = ("id",)

@@ -16,8 +16,12 @@ dependencies = [
     "redis",
 ]
 
+[project.optional-dependencies]
+storage-s3 = ["boto3>=1.35"]
+
 [dependency-groups]
 dev = [
+    "boto3>=1.35",
     "pre-commit",
     "pytest",
     "pytest-cov",

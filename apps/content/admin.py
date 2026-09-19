@@ -3,6 +3,7 @@ from __future__ import annotations
 from django import forms
 from django.contrib import admin
 
+from apps.common.permissions import CONTENT_AUTHOR_ROLES
 from apps.content.models import (
     ContentBlock,
     ContentBlockType,
@@ -11,11 +12,8 @@ from apps.content.models import (
     Subject,
     Topic,
 )
-from apps.users.models import User
 
 from . import services
-
-CONTENT_ROLES = {User.Role.EDITOR, User.Role.ADMIN}
 
 
 class ContentPermissionMixin:
@@ -25,7 +23,9 @@ class ContentPermissionMixin:
         user = request.user
         if not (user.is_active and user.is_staff):
             return False
-        return bool(user.is_superuser or getattr(user, "role", None) in CONTENT_ROLES)
+        return bool(
+            user.is_superuser or getattr(user, "role", None) in CONTENT_AUTHOR_ROLES
+        )
 
     def has_module_permission(self, request) -> bool:
         return self._has_content_access(request)
