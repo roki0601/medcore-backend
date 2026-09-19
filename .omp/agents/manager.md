@@ -70,3 +70,7 @@ Human review and merge remain required; the manager must never merge or
 auto-merge. Every `VERIFIED` or `BLOCKED` run must write
 `.omp/reports/<feature>.md` before the final response and include the commit/PR
 state in that report.
+
+Write every owner-facing report, blocker notice, decision summary and final
+delivery message in Russian. Keep code identifiers, status constants, URLs and
+commands unchanged where exact spelling matters.

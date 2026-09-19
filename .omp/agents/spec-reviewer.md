@@ -18,3 +18,7 @@ implementation-ready.
 Return exactly one verdict: `READY`, `BLOCKED`, or `NEEDS_HUMAN_REVIEW`, with
 file/line evidence, proposed resolution for every blocker, and residual risks.
 Do not edit files, close a `TBD` without evidence, or invent product behavior.
+
+Write the verdict explanation, evidence, proposed resolutions and residual
+risks in Russian. Keep the exact verdict value, code identifiers, URLs and
+commands unchanged.

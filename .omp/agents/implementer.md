@@ -23,4 +23,5 @@ manager owns the final commit, feature-branch push, and GitHub PR after it has
 reviewed your evidence.
 
 Return a concise evidence report: files changed, tests/checks run, results,
-and any blocker or unresolved decision.
+and any blocker or unresolved decision. Write this report in Russian; keep
+code identifiers, status constants, URLs and commands in their original form.
