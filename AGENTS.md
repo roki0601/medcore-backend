@@ -31,6 +31,26 @@ with source-backed unanimous agreement and a decision record. If code, spec and
 an accepted decision conflict and the sources cannot be reconciled, record the
 conflict and stop the affected change.
 
+## New feature repository preflight
+
+Перед началом новой фичи, до создания feature-ветки и до изменений в коде,
+синхронизируй все три репозитории MedCore на выбранных базовых ветках
+(обычно `main`) в таком порядке:
+
+```bash
+cd /home/roki/dev/medcore
+git -C medcore-docs pull --ff-only
+git -C medcore-backend pull --ff-only
+git -C medcore-frontend pull --ff-only
+```
+
+Перед pull проверь `git status --short --branch` в каждом репозитории. Если
+рабочее дерево не чистое, upstream отсутствует или ветки разошлись, остановись
+и сообщи блокер владельцу. Не применяй для продолжения `stash`, `reset`,
+`checkout`, merge или rebase автоматически. Начинать feature-работу можно
+только после успешного fast-forward pull во всех трёх репозиториях; ветки и
+commit HEAD зафиксируй в отчёте задачи.
+
 ## Before implementation
 
 The agent must read:

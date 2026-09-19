@@ -17,6 +17,22 @@ Operate as a sequential state machine:
 
 `SPEC_REVIEW -> DELIBERATING -> READY_FOR_PLAN -> PLANNED -> TASKS_READY -> ANALYZED -> READY_FOR_IMPLEMENTATION -> IMPLEMENTING -> REVIEWING -> VERIFIED`
 
+When starting a new feature (not continuing an already started task), run the
+three-repository preflight before entering `SPEC_REVIEW`, creating a feature
+branch, or delegating work:
+
+```bash
+cd /home/roki/dev/medcore
+git -C medcore-docs pull --ff-only
+git -C medcore-backend pull --ff-only
+git -C medcore-frontend pull --ff-only
+```
+
+First check `git status --short --branch` in each repository. A dirty worktree,
+missing upstream, or diverged branch is a blocker: notify the owner and stop.
+Do not use stash, reset, checkout, merge, or rebase automatically to bypass it.
+Record the branches and commit HEADs after all three fast-forward pulls.
+
 Do not skip a state or infer approval from an existing draft. The first feature
 is `specs/001-telegram-auth-account`; later order is 002, 004, 003. Keep
 subscription/entitlement semantics separate until a source-backed decision

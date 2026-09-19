@@ -48,6 +48,24 @@ uncertainty, or authoritative sources conflict. Record the trigger, evidence,
 Luna's verdict, and the follow-up in `.omp/decisions/`. Only an irreconcilable
 source conflict or an unresolvable validation failure marks the task `BLOCKED`.
 
+## New feature repository preflight
+
+Before starting a new feature, the manager must check and fast-forward all three
+MedCore repositories before entering `SPEC_REVIEW`, creating a feature branch,
+or delegating implementation:
+
+```bash
+cd /home/roki/dev/medcore
+git -C medcore-docs pull --ff-only
+git -C medcore-backend pull --ff-only
+git -C medcore-frontend pull --ff-only
+```
+
+Run `git status --short --branch` first in each repository. A dirty worktree,
+missing upstream, or diverged branch is a blocker to report to the owner. Do
+not bypass it with automatic stash, reset, checkout, merge, or rebase. Record
+the resulting branches and commit HEADs in the task report.
+
 Git safety guards are active when OMP is started through the wrapper. They block
 direct/force pushes outside an explicit feature-style branch, merges, history
 rewrites, destructive reset/clean/restore operations, `--no-verify` commits,
