@@ -1,25 +1,27 @@
 # Project-local OMP settings for MedCore.
 # Model identifiers are resolved from the existing user catalog; credentials stay global.
+# DeepSeek is the primary project model. Thinking level is controlled by each
+# agent, so the selector intentionally has no ":max" suffix.
 modelRoleStorage: project
 
 modelRoles:
-  default: ufanet-local/Qwen3-Coder-Next-NVFP4
+  default: openrouter/deepseek/deepseek-v4.1-flash
   smol: ufanet-local/Qwen3-Coder-Next-NVFP4
-  task: ufanet-local/Qwen3-Coder-Next-NVFP4
-  commit: ufanet-local/Qwen3-Coder-Next-NVFP4
+  task: openrouter/deepseek/deepseek-v4.1-flash
+  commit: openrouter/deepseek/deepseek-v4.1-flash
   tiny: ufanet-local/Qwen3-Coder-Next-NVFP4
 
-  plan: openai-codex/gpt-5.6-luna:max
-  slow: openai-codex/gpt-5.6-luna:max
-  advisor: openai-codex/gpt-5.6-luna:high
-  vision: openai-codex/gpt-5.6-luna
+  plan: openrouter/deepseek/deepseek-v4.1-flash
+  slow: openrouter/deepseek/deepseek-v4.1-flash
+  vision: openrouter/deepseek/deepseek-v4.1-flash
 
-  architect: openrouter/deepseek/deepseek-v4.1-flash:max
-  senior_review: openrouter/deepseek/deepseek-v4.1-flash:max
-  escalation: openrouter/deepseek/deepseek-v4.1-flash:max
+  architect: openrouter/deepseek/deepseek-v4.1-flash
+  senior_review: openrouter/deepseek/deepseek-v4.1-flash
+  advisor: openai-codex/gpt-5.6-luna
+  escalation: openai-codex/gpt-5.6-luna
 
-# Advisors are opt-in to avoid doubling every ordinary coding turn.
-# Use --advisor for a session-wide Watchdog review.
+# Luna is deliberately not attached to every turn. The manager invokes the
+# read-only watchdog explicitly when an escalation trigger is present.
 advisor:
   enabled: false
   syncBacklog: 1

@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config_path="${OMP_TELEGRAM_ENV_FILE:-${XDG_CONFIG_HOME:-$HOME/.config}/medcore/omp-telegram.env}"
+
+if [[ "${1:-}" == "--check" ]]; then
+  if [[ ! -f "$config_path" ]]; then
+    echo "Telegram notification config is missing: $config_path" >&2
+    exit 1
+  fi
+
+  permissions="$(stat -c '%a' "$config_path")"
+  if [[ "$permissions" != "600" ]]; then
+    echo "Telegram notification config must have mode 600: $config_path" >&2
+    exit 1
+  fi
+
+  awk -F= '
+    /^[[:space:]]*#/ || /^[[:space:]]*$/ { next }
+    $1 == "OMP_TELEGRAM_BOT_TOKEN" && length($2) > 0 { token = 1 }
+    $1 == "OMP_TELEGRAM_CHAT_ID" && length($2) > 0 { chat = 1 }
+    END { exit !(token && chat) }
+  ' "$config_path" || {
+    echo "Telegram notification config must define both required keys" >&2
+    exit 1
+  }
+
+  echo "Telegram notification config is ready: $config_path"
+  exit 0
+fi
+
+config_dir="$(dirname "$config_path")"
+mkdir -p "$config_dir"
+chmod 700 "$config_dir"
+
+read -r -s -p "Telegram bot token (fresh token from BotFather): " bot_token
+printf '\n'
+if [[ -z "$bot_token" ]]; then
+  echo "Bot token must not be empty" >&2
+  exit 1
+fi
+
+read -r -p "Telegram chat ID: " chat_id
+if [[ -z "$chat_id" ]]; then
+  echo "Chat ID must not be empty" >&2
+  exit 1
+fi
+
+umask 077
+tmp_path="$(mktemp "${config_path}.tmp.XXXXXX")"
+trap 'rm -f "$tmp_path"' EXIT
+printf 'OMP_TELEGRAM_BOT_TOKEN=%s\nOMP_TELEGRAM_CHAT_ID=%s\n' "$bot_token" "$chat_id" > "$tmp_path"
+chmod 600 "$tmp_path"
+mv -f "$tmp_path" "$config_path"
+trap - EXIT
+
+echo "Telegram notifications configured at $config_path"

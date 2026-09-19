@@ -1,8 +1,8 @@
 # Spec: Telegram auth and user account
 
-Status: Draft
-
-Owning apps: users, common
+Status: Ready for implementation after delegated quorum; decision record:
+`.omp/decisions/2026-09-18-001-telegram-auth-account-quorum.md`
+Owning apps: `users`; `common` supplies only domain-agnostic primitives.
 
 Risk: High
 
@@ -111,6 +111,8 @@ Acceptance scenarios:
 - RefreshSession: server-side lifecycle record for a non-rotating refresh JWT,
   with expiry and revoked state.
 - Telegram login payload: verified request input, never persisted as a secret.
+- TelegramLoginReplay: users-owned ledger of a non-secret digest of the
+  canonical verified Telegram payload, with unique digest and expiry metadata.
 
 Existing Django password and email columns are not removed by this spec; they are
 not a public authentication flow until a future approved spec.
@@ -134,6 +136,10 @@ not a public authentication flow until a future approved spec.
 10. Logout is idempotent and revokes only the current refresh session.
 11. Logout-all revokes all refresh sessions for the User.
 12. Inactive or deleted users cannot login, refresh or call authenticated APIs.
+13. A fresh verified payload for a deleted Telegram account may create a new
+    User with no prior account data; a stale credential cannot authenticate.
+14. Exact replay of a verified payload is rejected by the unique replay ledger
+    before User or RefreshSession state is committed.
 
 ## Invariants
 
@@ -163,6 +169,14 @@ No Telegram identity table is introduced.
 - revoked_at: nullable UTC timestamp.
 - created_at and last_used_at: UTC timestamps.
 - index by user and active/expiry state.
+
+### TelegramLoginReplay
+
+- digest: required one-way digest of the complete canonical verified
+  data-check string; unique and never reversible to the raw payload.
+- expires_at: required UTC timestamp for freshness/operational inspection.
+- created_at: required UTC timestamp.
+- Raw Telegram payload, bot token and JWTs are never stored.
 
 ## API
 
@@ -272,7 +286,8 @@ Every error uses the backend envelope:
 | invalid CSRF | 403 | CSRF_FAILED |
 | username conflict | 409 | USERNAME_TAKEN |
 | username validation failure | 422 | VALIDATION_ERROR |
-| inactive/deleted User | 401 | AUTH_USER_INACTIVE |
+| inactive User | 401 | AUTH_USER_INACTIVE |
+| stale credential after deletion | 401 | AUTHENTICATION_REQUIRED |
 | excessive requests | 429 | THROTTLED |
 
 Error details never reveal Telegram bot secrets, JWTs or internal traceback.
@@ -285,17 +300,21 @@ Error details never reveal Telegram bot secrets, JWTs or internal traceback.
   race and the losing request returns the existing User/session safely.
 - Two username updates race: database unique constraint returns one conflict.
 - Refresh and logout race: a refresh observed after revocation fails.
-- Account deletion repeated after completion: return 404 or idempotent success
-  according to the final account API convention; do not recreate data.
+- Account deletion first returns 204 after revoking sessions and deleting the
+  User. A later request with a stale access credential returns 401 without
+  changing data; it does not create a tombstone. A later fresh verified
+  Telegram payload may create a new User without restoring deleted data.
 
 ## Transactions
 
-- User lookup/create and first RefreshSession creation are one atomic operation.
+- User lookup/create, replay-ledger consume and first RefreshSession creation
+  are one atomic operation after Telegram HTTP verification completes.
 - Username update and uniqueness validation are one atomic operation.
 - Logout revocation is one idempotent update.
 - Logout-all revokes all sessions in one transaction.
-- Account deletion runs through a service that revokes sessions before the User
-  and dependent learning data are deleted.
+- Account deletion locks the User, revokes sessions, and physically deletes the
+  User in one transaction; future learning-owned User FKs cascade in the
+  owning app without a users-to-learning import.
 - Telegram HTTP verification is completed before opening the database write
   transaction.
 
@@ -312,12 +331,27 @@ None. Telegram verification and token lifecycle are synchronous.
 ## Security
 
 - Store Telegram bot/token secrets only in environment-backed secret storage.
-- Do not trust frontend-supplied telegram_id without Telegram signature
-  verification.
-- Apply throttling to Telegram login, refresh and account mutation endpoints.
-- Use HTTPS in production, Secure and HttpOnly refresh cookie, explicit
-  SameSite policy and CSRF protection for cookie-authenticated state changes.
-- Restrict CORS to the single configured frontend origin.
+- Verify the legacy Login Widget HMAC data-check string before any database
+  write; reject `auth_date` older than 86400 seconds or more than 60 seconds
+  in the future.
+- Replay protection uses a PostgreSQL unique digest ledger and an atomic insert;
+  Redis is used only for shared throttling counters, never as replay state.
+- Use HS256 JWTs with a dedicated environment signing key, issuer
+  `medcore-backend`, audience `medcore-frontend`, 15-minute access lifetime,
+  30-day refresh lifetime, and claims `sub`, `jti`, `token_type`, `iat`, `exp`,
+  `iss`, `aud` and `auth_version`; refresh tokens are not rotated.
+- Refresh cookie is `medcore_refresh`, HttpOnly, `Path=/api/v1/auth/`,
+  `SameSite=Lax`, Secure in production and host-only. CSRF uses Django's
+  `csrftoken` cookie and `X-CSRFToken` header.
+- Require CSRF cookie/header for Telegram login, refresh and current logout.
+  Bearer-only logout-all, profile PATCH and profile DELETE do not require a
+  cookie CSRF header.
+- Apply shared Redis-backed throttling: Telegram login 10/minute/IP plus
+  5/minute/verified Telegram ID when available; refresh 30/minute/IP before
+  validation plus 30/minute/session after validation; account mutations
+  10/minute/user+IP.
+- Restrict CORS and CSRF trusted origins to the configured frontend origin.
+- Do not trust frontend-supplied telegram_id without signature verification.
 - Never log raw Telegram payload, JWT, cookie or secret.
 
 ## Risks, compatibility and rollout
@@ -368,6 +402,7 @@ None. Telegram verification and token lifecycle are synchronous.
 
 ## Open questions
 
-None for the MVP behavior. Protocol-level verification details are implementation
-checks against the official Telegram Login Widget requirements, not product
-choices.
+None for the MVP behavior. The delegated quorum resolved timestamp/replay
+policy, deletion retention semantics, JWT/cookie/CSRF baseline and throttling;
+the implementation must follow the decision record above and the official
+legacy Telegram Login Widget verification algorithm.

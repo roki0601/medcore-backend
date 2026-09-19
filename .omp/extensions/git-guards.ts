@@ -57,8 +57,17 @@ function blockedReason(command: string): string | undefined {
     return "destructive/history-rewriting Git operation is blocked";
   }
 
-  if (/\bgit\s+(?:checkout\s+--|restore\b)/i.test(normalized)) {
+  if (/\bgit\s+checkout\s+--/i.test(normalized)) {
     return "working-tree discard operation is blocked";
+  }
+
+  if (/\bgit\s+restore\b/i.test(normalized)) {
+    const indexOnlyRestore =
+      /\bgit\s+restore\s+--staged(?:\s|$)/i.test(normalized) &&
+      !/\s--worktree(?:\s|$)/i.test(normalized);
+    if (!indexOnlyRestore) {
+      return "working-tree discard operation is blocked";
+    }
   }
 
   if (/\bgit\s+commit\b/i.test(normalized)) {
