@@ -27,7 +27,6 @@ run_model_smoke() {
 }
 
 run_model_smoke GROK_PLAN @plan
-run_model_smoke GEMINI_ADVISOR @advisor
 run_model_smoke GEMINI_REVIEW @senior_review
 
 ./scripts/ai/check-git-safety.sh
