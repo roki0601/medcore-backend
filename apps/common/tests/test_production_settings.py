@@ -19,6 +19,10 @@ BASE_ENV = {
     "DATABASE_HOST": "postgres",
     "DATABASE_PORT": "5432",
     "REDIS_URL": "redis://redis:6379/1",
+    "ROBOKASSA_MERCHANT_LOGIN": "merchant",
+    "ROBOKASSA_PASSWORD_1": "pass1",
+    "ROBOKASSA_PASSWORD_2": "pass2",
+    "ROBOKASSA_HASH_ALGORITHM": "sha256",
     "ROBOKASSA_TEST_MODE": "false",
 }
 
@@ -99,3 +103,27 @@ def test_production_accepts_explicit_proxy_security_configuration():
     )
 
     assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "ROBOKASSA_MERCHANT_LOGIN",
+        "ROBOKASSA_PASSWORD_1",
+        "ROBOKASSA_PASSWORD_2",
+        "ROBOKASSA_HASH_ALGORITHM",
+    ],
+)
+def test_production_requires_robokassa_credentials_and_algorithm(name):
+    result = _import_production({name: None})
+
+    assert result.returncode != 0
+    assert name in result.stderr
+
+
+@pytest.mark.parametrize("algo", ["sha1", "unsupported", ""])
+def test_production_rejects_invalid_robokassa_hash_algorithm(algo):
+    result = _import_production({"ROBOKASSA_HASH_ALGORITHM": algo})
+
+    assert result.returncode != 0
+    assert "ROBOKASSA_HASH_ALGORITHM" in result.stderr

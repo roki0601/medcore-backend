@@ -57,6 +57,12 @@ for _database_setting in (
 
 REDIS_URL = _required_env("REDIS_URL")
 CACHES["default"]["LOCATION"] = REDIS_URL  # noqa: F405
+ROBOKASSA_MERCHANT_LOGIN = _required_env("ROBOKASSA_MERCHANT_LOGIN")
+ROBOKASSA_PASSWORD_1 = _required_env("ROBOKASSA_PASSWORD_1")
+ROBOKASSA_PASSWORD_2 = _required_env("ROBOKASSA_PASSWORD_2")
+ROBOKASSA_HASH_ALGORITHM = _required_env("ROBOKASSA_HASH_ALGORITHM").lower()
+if ROBOKASSA_HASH_ALGORITHM not in {"md5", "sha256"}:
+    raise ImproperlyConfigured("ROBOKASSA_HASH_ALGORITHM must be either md5 or sha256")
 ROBOKASSA_TEST_MODE = _required_bool("ROBOKASSA_TEST_MODE")
 
 AUTH_REFRESH_COOKIE_SECURE = True
