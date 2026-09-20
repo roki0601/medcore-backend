@@ -32,7 +32,8 @@ def get_user_dashboard(user) -> dict[str, Any]:
         status=Topic.Status.PUBLISHED,
     ).select_related("section", "section__subject")
 
-    if not has_paid_content_entitlement(user):
+    entitled = has_paid_content_entitlement(user)
+    if not entitled:
         topics_qs = topics_qs.exclude(access_level=Topic.AccessLevel.PAID)
 
     # 2. Filter topics that have any learning activity for this user
@@ -79,7 +80,9 @@ def get_user_dashboard(user) -> dict[str, Any]:
 
     # Defensive check: re-verify topic access policy for each candidate topic
     started_topics = [
-        t for t in candidate_topics if evaluate_topic_access(t, user).full_access
+        t
+        for t in candidate_topics
+        if evaluate_topic_access(t, user, entitled=entitled).full_access
     ]
 
     if not started_topics:

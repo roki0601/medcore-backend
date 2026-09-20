@@ -453,3 +453,118 @@ def test_dashboard_query_count_is_bounded_no_n_plus_1(
         r2 = client.get("/api/v1/dashboard/")
     assert r2.status_code == 200
     assert len(r2.json()["topics"]) == 5
+
+
+@pytest.mark.django_db
+def test_paid_topics_query_count_bounded_no_n_plus_1(
+    api_client,
+    authenticate,
+    make_user,
+    make_topic,
+    make_block,
+    make_flashcard,
+    make_quiz,
+    plan,
+    django_assert_num_queries,
+):
+    """Regression test: query count does not grow with multiple paid topics."""
+    user = make_user(username="paid_perf_tester")
+    client = authenticate(api_client, user)
+    now = timezone.now()
+
+    # Active subscription gives paid entitlement
+    Subscription.objects.create(
+        user=user,
+        plan=plan,
+        status=Subscription.Status.ACTIVE,
+        starts_at=now - timedelta(days=1),
+        expires_at=now + timedelta(days=29),
+    )
+
+    # 1 paid started topic
+    t1 = make_topic(title="Paid Topic 1", access_level=Topic.AccessLevel.PAID)
+    b1 = make_block(t1)
+    complete_topic_block(user, t1, b1.pk)
+
+    # Warm up client / session cache
+    client.get("/api/v1/dashboard/")
+
+    # 1 paid topic: exactly 9 queries
+    with django_assert_num_queries(9):
+        r1 = client.get("/api/v1/dashboard/")
+    assert r1.status_code == 200
+    assert len(r1.json()["topics"]) == 1
+
+    # Add 4 more paid started topics (total 5 paid started topics)
+    for i in range(2, 6):
+        top = make_topic(
+            title=f"Paid Topic {i}",
+            access_level=Topic.AccessLevel.PAID,
+        )
+        b = make_block(top)
+        complete_topic_block(user, top, b.pk)
+        fc = make_flashcard(top)
+        FlashcardReview.objects.create(
+            user=user,
+            flashcard=fc,
+            next_review_at=timezone.now() - timedelta(hours=1),
+        )
+        qz = make_quiz(top)
+        QuizAttempt.objects.create(
+            user=user,
+            quiz=qz,
+            status=QuizAttempt.Status.SUBMITTED,
+            score_percent=85,
+        )
+
+    # 5 paid topics: query count must remain exactly 9 (no N+1 per paid topic)
+    with django_assert_num_queries(9):
+        r2 = client.get("/api/v1/dashboard/")
+    assert r2.status_code == 200
+    assert len(r2.json()["topics"]) == 5
+
+
+@pytest.mark.django_db
+def test_mixed_access_levels_active_entitlement(
+    api_client,
+    authenticate,
+    make_user,
+    make_topic,
+    make_block,
+    plan,
+    django_assert_num_queries,
+):
+    """Mixed demo, free, paid topics under active entitlement all appear in O(1)."""
+    user = make_user(username="mixed_tester")
+    client = authenticate(api_client, user)
+    now = timezone.now()
+
+    Subscription.objects.create(
+        user=user,
+        plan=plan,
+        status=Subscription.Status.ACTIVE,
+        starts_at=now - timedelta(days=1),
+        expires_at=now + timedelta(days=29),
+    )
+
+    t_demo = make_topic(title="Demo Topic", access_level=Topic.AccessLevel.DEMO)
+    b_demo = make_block(t_demo)
+    complete_topic_block(user, t_demo, b_demo.pk)
+
+    t_free = make_topic(title="Free Topic", access_level=Topic.AccessLevel.FREE)
+    b_free = make_block(t_free)
+    complete_topic_block(user, t_free, b_free.pk)
+
+    t_paid = make_topic(title="Paid Topic", access_level=Topic.AccessLevel.PAID)
+    b_paid = make_block(t_paid)
+    complete_topic_block(user, t_paid, b_paid.pk)
+
+    client.get("/api/v1/dashboard/")
+
+    with django_assert_num_queries(9):
+        res = client.get("/api/v1/dashboard/")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["summary"]["started_topics_count"] == 3
+    returned_ids = {t["id"] for t in data["topics"]}
+    assert returned_ids == {t_demo.pk, t_free.pk, t_paid.pk}
