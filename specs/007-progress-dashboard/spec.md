@@ -1,6 +1,6 @@
 # Feature 007 — Progress/dashboard aggregate API
 
-- Status: IMPLEMENTED (READY_FOR_REVIEW)
+- Status: MERGED (PR #15)
 - Date: 2026-09-20
 - Owning Django app: `apps.learning`
 - Consumers: Authenticated web/mobile dashboard clients

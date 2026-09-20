@@ -12,5 +12,9 @@ class HealthResponseSerializer(serializers.Serializer):
     status = serializers.CharField()
 
 
+class HealthReadinessResponseSerializer(HealthResponseSerializer):
+    checks = serializers.DictField(child=serializers.CharField())
+
+
 class CSRFTokenResponseSerializer(serializers.Serializer):
     csrf_token = serializers.CharField()

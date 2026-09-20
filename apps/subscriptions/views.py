@@ -160,7 +160,9 @@ class PaymentInitView(generics.GenericAPIView):
 class RobokassaResultView(APIView):
     """Public webhook callback handler for Robokassa ResultURL notifications."""
 
+    authentication_classes = ()
     permission_classes = (AllowAny,)
+    serializer_class = PaymentStatusResponseSerializer
     throttle_scope = "subscriptions_result"
 
     def _handle_notification(self, request):
@@ -247,7 +249,9 @@ class RobokassaResultView(APIView):
 class RobokassaSuccessView(APIView):
     """Buyer landing endpoint after successful payment (SuccessURL)."""
 
+    authentication_classes = ()
     permission_classes = (AllowAny,)
+    serializer_class = PaymentStatusResponseSerializer
     throttle_scope = "subscriptions_read"
 
     @extend_schema(
@@ -266,22 +270,29 @@ class RobokassaSuccessView(APIView):
             status=status.HTTP_200_OK,
         )
 
+    @extend_schema(
+        request=None,
+        responses={200: PaymentStatusResponseSerializer},
+    )
     def post(self, request, *args, **kwargs):
+        # Robokassa may POST to the buyer landing URL; the response shape is
+        # identical to GET and the body is intentionally ignored.
         return self.get(request, *args, **kwargs)
 
 
 class RobokassaFailView(APIView):
     """Buyer landing endpoint after failed or cancelled payment (FailURL)."""
 
+    authentication_classes = ()
     permission_classes = (AllowAny,)
+    serializer_class = PaymentStatusResponseSerializer
     throttle_scope = "subscriptions_read"
 
     @extend_schema(
         summary="Robokassa payment fail redirect target",
         description="Buyer UX landing endpoint after cancelled or failed payment.",
-        responses={
-            200: PaymentStatusResponseSerializer,
-        },
+        request=None,
+        responses={200: PaymentStatusResponseSerializer},
     )
     def get(self, request, *args, **kwargs):
         return Response(
@@ -292,5 +303,9 @@ class RobokassaFailView(APIView):
             status=status.HTTP_200_OK,
         )
 
+    @extend_schema(
+        request=None,
+        responses={200: PaymentStatusResponseSerializer},
+    )
     def post(self, request, *args, **kwargs):
         return self.get(request, *args, **kwargs)

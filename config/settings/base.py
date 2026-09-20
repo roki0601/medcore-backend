@@ -147,6 +147,7 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
+    "apps.common.middleware.APIRequestDataTooBigMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
@@ -182,6 +183,7 @@ DATABASES = {
         "HOST": os.environ.get("DATABASE_HOST", "127.0.0.1"),
         "PORT": os.environ.get("DATABASE_PORT", "5432"),
         "CONN_MAX_AGE": int(os.environ.get("DATABASE_CONN_MAX_AGE", "60")),
+        "CONN_HEALTH_CHECKS": env_bool("DATABASE_CONN_HEALTH_CHECKS", True),
         "TEST": {
             "NAME": os.environ.get("DATABASE_TEST_NAME", "medcore_test"),
         },
@@ -243,6 +245,8 @@ SPECTACULAR_SETTINGS = {
     "VERSION": "0.1.0",
     "SERVE_INCLUDE_SCHEMA": False,
     "ENUM_NAME_OVERRIDES": {
+        "ContentBlockStatusEnum": "apps.content.models.ContentBlock.Status",
+        "TopicStatusEnum": "apps.content.models.Topic.Status",
         "SubscriptionStatusEnum": "apps.subscriptions.models.Subscription.Status",
         "PaymentStatusEnum": "apps.subscriptions.models.Payment.Status",
         "TopicProgressStatusEnum": "apps.learning.models.UserTopicProgress.Status",
@@ -259,9 +263,11 @@ ROBOKASSA_BASE_URL = os.environ.get(
     "ROBOKASSA_BASE_URL", "https://auth.robokassa.ru/Merchant/Index.aspx"
 )
 
+LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").strip().upper()
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "handlers": {"console": {"class": "logging.StreamHandler"}},
-    "root": {"handlers": ["console"], "level": "INFO"},
+    "root": {"handlers": ["console"], "level": LOG_LEVEL},
 }

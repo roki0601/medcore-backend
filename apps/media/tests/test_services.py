@@ -10,6 +10,7 @@ from django.contrib.auth.models import AnonymousUser
 from django.utils import timezone
 
 from apps.common.exceptions import APIError
+from apps.content.media_policy import decide_media_access
 from apps.media import services
 from apps.media.models import MediaFile
 from apps.media.storage import get_storage_adapter
@@ -198,6 +199,23 @@ def test_protected_access_is_denied_for_an_authenticated_actor_without_access(
         403,
         "MEDIA_ACCESS_DENIED",
     )
+
+
+@pytest.mark.parametrize("paid_count", [1, 5])
+@pytest.mark.django_db
+def test_media_access_keeps_paid_entitlement_queries_bounded(
+    media_file, media_reference, make_user, django_assert_num_queries, paid_count
+):
+    media = media_file(visibility=PROTECTED)
+    for _ in range(paid_count):
+        media_reference(media, access_level="paid")
+    user = make_user(username="no-entitlement")
+
+    with django_assert_num_queries(2):
+        decision = decide_media_access(media, user)
+
+    assert decision.allowed is False
+    assert decision.requires_authentication is False
 
 
 @pytest.mark.django_db

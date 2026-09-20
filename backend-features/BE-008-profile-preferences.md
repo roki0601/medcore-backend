@@ -1,6 +1,6 @@
 # BE-008 — Profile and study preferences
 
-Status: READY_FOR_REVIEW
+Status: MERGED (PR #16)
 
 ## Implementation Summary
 

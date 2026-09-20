@@ -21,6 +21,7 @@ from rest_framework.throttling import ScopedRateThrottle
 
 from apps.content.models import Flashcard, Section, Subject, Topic
 from apps.learning.flashcards import services
+from apps.learning.flashcards.selectors import due_flashcard_reviews
 from apps.learning.models import FlashcardReview, UserTopicProgress
 
 User = get_user_model()
@@ -268,6 +269,35 @@ def test_due_list_keeps_only_past_published_accessible_reviews(
     assert [item["id"] for item in body["results"]] == [demo_card.pk, free_card.pk]
     assert all(item["review"] is not None for item in body["results"])
     assert never_card.pk not in [item["id"] for item in body["results"]]
+
+
+@pytest.mark.parametrize("paid_count", [1, 5])
+@pytest.mark.django_db
+def test_due_selector_keeps_paid_entitlement_queries_bounded(
+    make_user, make_topic, make_flashcard, django_assert_num_queries, paid_count
+):
+    user = make_user()
+    now = timezone.now()
+
+    for index in range(paid_count):
+        topic = make_topic(
+            title=f"Paid topic {index}",
+            access_level=Topic.AccessLevel.PAID,
+        )
+        card = make_flashcard(topic)
+        FlashcardReview.objects.create(
+            user=user,
+            flashcard=card,
+            interval_days=1,
+            repetitions=1,
+            last_reviewed_at=now - timedelta(days=1),
+            next_review_at=now,
+        )
+
+    with django_assert_num_queries(2):
+        due = due_flashcard_reviews(user, now=now)
+
+    assert due == []
 
 
 # ---------------------------------------------------------------------------

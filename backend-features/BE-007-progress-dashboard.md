@@ -1,6 +1,6 @@
 # BE-007 — Progress/dashboard aggregate API
 
-Status: READY_FOR_REVIEW
+Status: MERGED (PR #15)
 
 ## Why this exists
 

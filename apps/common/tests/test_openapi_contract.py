@@ -163,3 +163,10 @@ def test_subscriptions_schema_described(schema):
     current_sub = schema["components"]["schemas"]["CurrentSubscriptionResponse"]
     assert "has_access" in current_sub["required"]
     assert "subscription" in current_sub["properties"]
+
+
+def test_openapi_has_health_readiness_paths_and_no_generation_warnings(schema):
+    assert "/api/v1/health/live/" in schema["paths"]
+    assert "/api/v1/health/ready/" in schema["paths"]
+    assert "ContentBlockStatusEnum" in schema["components"]["schemas"]
+    assert "TopicStatusEnum" in schema["components"]["schemas"]

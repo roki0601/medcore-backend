@@ -356,6 +356,22 @@ def test_payment_init_rejects_unconfigured_provider(api_client, user, plan, sett
     assert Payment.objects.count() == 0
 
 
+@pytest.mark.django_db
+def test_payment_init_rejects_missing_password_2(api_client, user, plan, settings):
+    settings.ROBOKASSA_PASSWORD_2 = ""
+
+    api_client.force_authenticate(user=user)
+    response = api_client.post(
+        "/api/v1/subscriptions/payments/",
+        {"plan_id": plan.id},
+        format="json",
+    )
+
+    assert response.status_code == 503
+    assert response.json()["code"] == "PAYMENT_PROVIDER_UNCONFIGURED"
+    assert Payment.objects.count() == 0
+
+
 # ==============================================================================
 # 4. Robokassa ResultURL Callback Tests
 # ==============================================================================
@@ -658,6 +674,7 @@ def test_robokassa_system_checks_in_production(settings):
     settings.ROBOKASSA_PASSWORD_1 = ""
     settings.ROBOKASSA_PASSWORD_2 = ""
     settings.ROBOKASSA_HASH_ALGORITHM = "sha256"
+    settings.ROBOKASSA_TEST_MODE = False
 
     errors = check_robokassa_configuration(None)
     assert len(errors) == 1
@@ -668,3 +685,21 @@ def test_robokassa_system_checks_in_production(settings):
     error_ids = {e.id for e in errors}
     assert "subscriptions.E001" in error_ids
     assert "subscriptions.E002" in error_ids
+
+
+def test_robokassa_system_check_warns_when_test_mode_enabled_in_production(settings):
+    from django.core.checks import Warning as CheckWarning
+
+    from apps.subscriptions.checks import check_robokassa_configuration
+
+    settings.DEBUG = False
+    settings.ROBOKASSA_MERCHANT_LOGIN = "merchant"
+    settings.ROBOKASSA_PASSWORD_1 = "password-1"
+    settings.ROBOKASSA_PASSWORD_2 = "password-2"
+    settings.ROBOKASSA_HASH_ALGORITHM = "sha256"
+    settings.ROBOKASSA_TEST_MODE = True
+
+    messages = check_robokassa_configuration(None)
+
+    assert {message.id for message in messages} == {"subscriptions.W001"}
+    assert isinstance(messages[0], CheckWarning)

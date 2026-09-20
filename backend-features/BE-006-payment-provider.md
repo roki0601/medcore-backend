@@ -1,6 +1,6 @@
 # BE-006 — Payment provider integration
 
-Status: READY_FOR_REVIEW
+Status: MERGED (PR #14)
 
 ## Goal
 

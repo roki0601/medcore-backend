@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from django.conf import settings
-from django.core.checks import Error, Tags, register
+from django.core.checks import Error, Tags, Warning, register
 
 SUPPORTED_ROBOKASSA_HASH_ALGORITHMS = {"md5", "sha256"}
 
@@ -28,6 +28,18 @@ def check_robokassa_configuration(app_configs, **kwargs) -> list[Error]:
         )
 
     if not settings.DEBUG:
+        if getattr(settings, "ROBOKASSA_TEST_MODE", False):
+            errors.append(
+                Warning(
+                    "ROBOKASSA_TEST_MODE is enabled while DEBUG=False.",
+                    hint=(
+                        "Set ROBOKASSA_TEST_MODE=false in production, or explicitly "
+                        "confirm that this deployment is a Robokassa test environment."
+                    ),
+                    id="subscriptions.W001",
+                )
+            )
+
         login = getattr(settings, "ROBOKASSA_MERCHANT_LOGIN", "")
         pwd_1 = getattr(settings, "ROBOKASSA_PASSWORD_1", "")
         pwd_2 = getattr(settings, "ROBOKASSA_PASSWORD_2", "")
