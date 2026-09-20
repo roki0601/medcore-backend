@@ -7,20 +7,21 @@ accepted product decisions, approved specs, architecture documents or
 ## Current state
 
 - Stage: `READY_FOR_REVIEW`.
-- Active feature: `BE-006` (`006-robokassa-payment`).
-  - Provider: Robokassa.
-  - Manual one-time Plan purchase (no recurring/autopay, no stored cards, no Celery).
-  - Fiscalization: Робочеки СМЗ (handled by Robokassa; backend does not integrate directly with FNS).
-  - Implementation, tests, OpenAPI, and spec completed in `feature/006-robokassa-payment`.
+- Active feature: `BE-007` (`007-progress-dashboard`).
+  - Progress/dashboard aggregate API.
+  - Authenticated own-user aggregate endpoint `GET /api/v1/dashboard/`.
+  - Aggregates started topics with theory progress, due flashcards, and quiz attempt summaries.
+  - Implementation, tests, OpenAPI, and spec completed in `feature/007-progress-dashboard`.
 - Shipped backend feature specs:
   - `001-telegram-auth-account` — merged;
   - `002-content-catalog-access` — merged;
   - `004-content-api-media` — merged;
   - `003-learning-state` — merged;
   - `005-subscriptions-paywall` — merged;
+  - `006-robokassa-payment` — merged (PR #14);
   - OpenAPI/runtime contract follow-up — merged.
-- Pending review: `006-robokassa-payment`.
-- Later roadmap items BE-007–BE-010 are explicitly BLOCKED until their listed
+- Pending review: `007-progress-dashboard`.
+- Later roadmap items BE-008–BE-010 are explicitly BLOCKED until their listed
   owner/upstream decisions exist.
 - Human review and merge remain required; auto-merge is forbidden.
 
@@ -50,8 +51,8 @@ yet have an approved spec.
 Order:
 
 1. BE-005 — subscription core and paid entitlement — `MERGED`;
-2. BE-006 — payment provider integration — `READY_FOR_REVIEW`;
-3. BE-007 — dashboard/progress aggregate API — `BLOCKED`;
+2. BE-006 — payment provider integration — `MERGED`;
+3. BE-007 — dashboard/progress aggregate API — `READY_FOR_REVIEW`;
 4. BE-008 — profile/study preferences — `BLOCKED`;
 5. BE-009 — content bulk/import extensions — `BLOCKED`;
 6. BE-010 — slug-based public URLs — `BLOCKED`.
