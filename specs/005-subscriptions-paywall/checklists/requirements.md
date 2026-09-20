@@ -1,6 +1,6 @@
 # Feature 005 — Requirements Checklist
 
-- [x] Owner decisions D1–D8 explicitly resolved.
+- [ ] Owner decisions D1–D8 explicitly resolved by project owner (currently PENDING).
 - [x] Topic access `demo | free | paid` contract preserved.
 - [x] `premium` is NOT added as a User role.
 - [x] Editor/Admin role alone does NOT bypass paid entitlement in user-facing APIs.

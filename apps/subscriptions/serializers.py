@@ -42,7 +42,6 @@ class CurrentSubscriptionSerializer(serializers.ModelSerializer):
             "starts_at",
             "expires_at",
             "is_trial",
-            "auto_renew",
         )
 
 

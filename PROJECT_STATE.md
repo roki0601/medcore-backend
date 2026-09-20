@@ -6,18 +6,18 @@ accepted product decisions, approved specs, architecture documents or
 
 ## Current state
 
-- Stage: `VERIFIED`.
-- Active implementation feature: `005-subscriptions-paywall` (PR created, ready for review).
+- Stage: `BLOCKED_FOR_OWNER_DECISION`.
+- Active feature: `BE-005` (`005-subscriptions-paywall`) — prototype proposed in PR #13, but implementation is NOT approved and NOT ready for merge until owner resolves decisions D1–D8.
 - Shipped backend feature specs:
   - `001-telegram-auth-account` — merged;
   - `002-content-catalog-access` — merged;
   - `004-content-api-media` — merged;
   - `003-learning-state` — merged;
   - OpenAPI/runtime contract follow-up — merged.
-- Next pending merge: `005-subscriptions-paywall` (spec in `specs/005-subscriptions-paywall/`).
+- Next roadmap item: `backend-features/BE-005-subscriptions-core.md` — owner decision packet D1–D8 presented in `specs/005-subscriptions-paywall/spec.md`.
 - Later roadmap items BE-006–BE-010 are explicitly BLOCKED until their listed
   owner/upstream decisions exist.
-- Human review and merge remain required.
+- Human review and merge remain required; auto-merge is forbidden.
 
 ## Current validated baseline
 

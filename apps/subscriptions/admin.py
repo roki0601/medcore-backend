@@ -31,10 +31,9 @@ class SubscriptionAdmin(admin.ModelAdmin):
         "starts_at",
         "expires_at",
         "is_trial",
-        "auto_renew",
         "created_at",
     )
-    list_filter = ("status", "is_trial", "auto_renew", "plan")
+    list_filter = ("status", "is_trial", "plan")
     search_fields = ("user__username", "user__email", "plan__title", "plan__code")
     raw_id_fields = ("user",)
     date_hierarchy = "expires_at"

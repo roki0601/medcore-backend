@@ -61,8 +61,7 @@ All endpoints follow the standard MedCore REST conventions and error envelope.
     "status": "active",
     "starts_at": "2026-09-01T00:00:00Z",
     "expires_at": "2026-10-01T00:00:00Z",
-    "is_trial": false,
-    "auto_renew": false
+    "is_trial": false
   }
 }
 ```

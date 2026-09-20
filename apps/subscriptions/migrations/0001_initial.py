@@ -43,7 +43,6 @@ class Migration(migrations.Migration):
                 ('starts_at', models.DateTimeField(db_index=True)),
                 ('expires_at', models.DateTimeField(db_index=True)),
                 ('is_trial', models.BooleanField(default=False)),
-                ('auto_renew', models.BooleanField(default=False)),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('updated_at', models.DateTimeField(auto_now=True)),
                 ('plan', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='subscriptions', to='subscriptions.plan')),

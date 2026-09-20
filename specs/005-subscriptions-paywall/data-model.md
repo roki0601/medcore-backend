@@ -40,7 +40,6 @@ Represents a specific grant of subscription access to a user.
 | `starts_at` | DateTimeField | db_index=True | Start timestamp (UTC) |
 | `expires_at` | DateTimeField | db_index=True | End timestamp (UTC) |
 | `is_trial` | BooleanField | default=False | Whether this specific grant is a trial |
-| `auto_renew` | BooleanField | default=False | Auto-renewal flag (for future payment provider) |
 | `created_at` | DateTimeField | auto_now_add=True | UTC timestamp |
 | `updated_at` | DateTimeField | auto_now=True | UTC timestamp |
 

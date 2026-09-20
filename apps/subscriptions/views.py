@@ -7,7 +7,6 @@ from rest_framework.response import Response
 
 from apps.common.serializers import APIErrorResponseSerializer
 
-from .policy import has_paid_content_entitlement
 from .selectors import get_active_subscription, list_active_plans
 from .serializers import (
     CurrentSubscriptionResponseSerializer,
@@ -80,8 +79,8 @@ class CurrentSubscriptionView(generics.GenericAPIView):
     )
     def get(self, request, *args, **kwargs):
         user = request.user
-        has_access = has_paid_content_entitlement(user)
         active_sub = get_active_subscription(user)
+        has_access = active_sub is not None
 
         response_data = {
             "has_access": has_access,
