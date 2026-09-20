@@ -7,6 +7,7 @@ from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from apps.common.serializers import APIErrorResponseSerializer
 from apps.learning.access import get_accessible_published_topic
 from apps.learning.models import UserTopicProgress
 from apps.learning.progress.selectors import build_topic_progress_snapshot
@@ -22,15 +23,29 @@ from apps.learning.progress.services import (
 from apps.learning.serializers import EmptyBodySerializer
 
 ERROR_RESPONSES = {
+    400: OpenApiResponse(
+        response=APIErrorResponseSerializer, description="Invalid request."
+    ),
     401: OpenApiResponse(
-        description="Authentication required (AUTHENTICATION_REQUIRED)."
+        response=APIErrorResponseSerializer,
+        description="Authentication required (AUTHENTICATION_REQUIRED).",
     ),
     403: OpenApiResponse(
-        description="Paid-topic entitlement required (TOPIC_ENTITLEMENT_REQUIRED)."
+        response=APIErrorResponseSerializer,
+        description="Paid-topic entitlement required (TOPIC_ENTITLEMENT_REQUIRED).",
     ),
-    404: OpenApiResponse(description="Resource not found (RESOURCE_NOT_FOUND)."),
-    422: OpenApiResponse(description="Request validation failed (VALIDATION_ERROR)."),
-    429: OpenApiResponse(description="Too many requests (THROTTLED)."),
+    404: OpenApiResponse(
+        response=APIErrorResponseSerializer,
+        description="Resource not found (RESOURCE_NOT_FOUND).",
+    ),
+    422: OpenApiResponse(
+        response=APIErrorResponseSerializer,
+        description="Request validation failed (VALIDATION_ERROR).",
+    ),
+    429: OpenApiResponse(
+        response=APIErrorResponseSerializer,
+        description="Too many requests (THROTTLED).",
+    ),
 }
 
 

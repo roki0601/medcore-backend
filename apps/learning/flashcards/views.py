@@ -12,6 +12,7 @@ from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from apps.common.serializers import APIErrorResponseSerializer
 from apps.learning.access import (
     get_accessible_flashcard,
     get_accessible_published_topic,
@@ -29,11 +30,24 @@ from apps.learning.flashcards.serializers import (
 from apps.learning.flashcards.services import review_flashcard
 
 ERROR_RESPONSES = {
-    401: OpenApiResponse(description="Authentication required."),
-    403: OpenApiResponse(description="Entitlement required."),
-    404: OpenApiResponse(description="Resource not found."),
-    422: OpenApiResponse(description="Request validation failed."),
-    429: OpenApiResponse(description="Too many requests."),
+    400: OpenApiResponse(
+        response=APIErrorResponseSerializer, description="Invalid request."
+    ),
+    401: OpenApiResponse(
+        response=APIErrorResponseSerializer, description="Authentication required."
+    ),
+    403: OpenApiResponse(
+        response=APIErrorResponseSerializer, description="Entitlement required."
+    ),
+    404: OpenApiResponse(
+        response=APIErrorResponseSerializer, description="Resource not found."
+    ),
+    422: OpenApiResponse(
+        response=APIErrorResponseSerializer, description="Request validation failed."
+    ),
+    429: OpenApiResponse(
+        response=APIErrorResponseSerializer, description="Too many requests."
+    ),
 }
 
 AUTHENTICATED_PERMISSION = "Permission: authenticated user JWT."

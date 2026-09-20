@@ -13,6 +13,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.common.pagination import StandardPagination
+from apps.common.serializers import APIErrorResponseSerializer
 from apps.learning.access import get_accessible_published_topic, get_accessible_quiz
 from apps.learning.quizzes.selectors import (
     get_owned_attempt,
@@ -33,16 +34,32 @@ from apps.learning.quizzes.services import (
 from apps.learning.serializers import EmptyBodySerializer
 
 READ_ERROR_RESPONSES = {
-    401: OpenApiResponse(description="Authentication required."),
-    403: OpenApiResponse(description="Entitlement required."),
-    404: OpenApiResponse(description="Resource not found."),
-    429: OpenApiResponse(description="Too many requests."),
+    400: OpenApiResponse(
+        response=APIErrorResponseSerializer, description="Invalid request."
+    ),
+    401: OpenApiResponse(
+        response=APIErrorResponseSerializer, description="Authentication required."
+    ),
+    403: OpenApiResponse(
+        response=APIErrorResponseSerializer, description="Entitlement required."
+    ),
+    404: OpenApiResponse(
+        response=APIErrorResponseSerializer, description="Resource not found."
+    ),
+    429: OpenApiResponse(
+        response=APIErrorResponseSerializer, description="Too many requests."
+    ),
 }
 
 WRITE_ERROR_RESPONSES = {
     **READ_ERROR_RESPONSES,
-    409: OpenApiResponse(description="Active attempt or submitted attempt conflict."),
-    422: OpenApiResponse(description="Invalid payload or answer id."),
+    409: OpenApiResponse(
+        response=APIErrorResponseSerializer,
+        description="Active attempt or submitted attempt conflict.",
+    ),
+    422: OpenApiResponse(
+        response=APIErrorResponseSerializer, description="Invalid payload or answer id."
+    ),
 }
 
 

@@ -69,12 +69,28 @@ class QuizDetailSerializer(TopicQuizSerializer):
         fields = TopicQuizSerializer.Meta.fields + ("questions",)
 
 
+class QuizAttemptResultSerializer(serializers.Serializer):
+    question_id = serializers.IntegerField()
+    selected_answer_ids = serializers.ListField(child=serializers.IntegerField())
+    correct_answer_ids = serializers.ListField(child=serializers.IntegerField())
+    score_percent = serializers.IntegerField()
+
+
 class QuizAttemptSerializer(serializers.ModelSerializer):
     """One attempt with its frozen question set and no correctness leak."""
 
     topic = serializers.IntegerField(source="quiz.topic_id", read_only=True)
+    question_ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        read_only=True,
+    )
     selected_answer_ids = serializers.SerializerMethodField()
     questions = serializers.SerializerMethodField()
+    results = QuizAttemptResultSerializer(
+        many=True,
+        read_only=True,
+        allow_null=True,
+    )
 
     class Meta:
         model = QuizAttempt
