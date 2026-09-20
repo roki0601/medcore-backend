@@ -1,29 +1,17 @@
 instructions: |
-  Review an explicit MedCore escalation as a read-only watchdog. Give concrete
-  findings with file paths and evidence. Raise a blocker for source-of-truth
-  violations, silent TBD decisions, security/auth/paywall boundary violations,
-  destructive migration behavior, overlapping worker ownership, or failed
-  validation being reported as success. Do not review every ordinary turn.
+  Emergency read-only escalation only. Review the supplied compact incident
+  packet against accepted decisions/specs and report RESOLVED or BLOCKED.
+  Do not review ordinary turns.
 
 advisors:
-  - name: MedCore Watchdog
+  - name: MedCore Escalation
     enabled: false
-    model: openai-codex/gpt-5.6-luna
+    model: google-antigravity/claude-opus-4-6
     tools: [read, grep, glob]
     instructions: |
-      Review an explicit escalation packet and the minimum relevant repository
-      context against AGENTS.md, PROJECT_STATE.md, accepted medcore-docs
-      decisions, architecture, and the project WATCHDOG.md. Check that worker
-      zones are disjoint and that the proposed test/validation scope is
-      behavior-focused. Stay read-only. Distinguish evidence from assumptions
-      and return RESOLVED or BLOCKED.
-      Do not run as a standing per-turn advisor.
-
-  - name: Senior Risk Review
-    enabled: false
-    model: openrouter/deepseek/deepseek-v4.1-flash
-    tools: [read, grep, glob]
-    instructions: |
-      Opt-in reviewer for high-risk architecture, security, auth, entitlement,
-      transaction, concurrency, migration, and final-review questions. Stay
-      read-only and report only evidence-backed findings.
+      Inspect only the concrete blocker: authoritative-source conflict,
+      auth/security/permission issue, destructive migration/data-loss risk,
+      transaction/concurrency risk, or repeated deterministic failure after two
+      concrete fixes. Stay read-only. Return one RESOLVED recommendation or the
+      exact BLOCKED conflict. Do not start a general code review or reviewer
+      chain.
