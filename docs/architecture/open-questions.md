@@ -1,169 +1,131 @@
 # Open questions
 
-Здесь только вопросы, которые влияют на продуктовый контракт или границы
-архитектуры. Локальные имена функций, ORM-оптимизации и прочие implementation
-details сюда не выносятся.
+Здесь остаются только вопросы, которые реально не закрыты принятыми ADR,
+смёрженными feature specs или текущим runtime contract.
 
-> Решения из grill-сессии 2026-09-18 зафиксированы в
-> `medcore-docs/decisions/0008-mvp-auth-content-and-integration-contract.md`.
-> В частности, Telegram-only auth, direct `User.telegram_id`, one-origin
-> hosting, synchronous Content API и отсутствие ImportJob/Celery больше не
-> являются открытыми вопросами. Ниже остаются только вопросы, не закрытые этой
-> сессией, прежде всего subscriptions/payment и будущие расширения.
+Telegram Login Widget verification, non-rotating revocable refresh sessions,
+единый API error envelope, Topic `demo/free/paid`, synchronous Content API,
+basic media URL flow, flashcard scheduling и quiz-attempt lifecycle больше не
+являются open questions: они реализованы и покрыты соответствующими specs/tests.
 
-## 1. Telegram protocol and account linking (partially resolved)
+## 1. Paywall and subscriptions
 
-Нужно зафиксировать конкретный Telegram mechanism (Login Widget, Mini App
-init-data или другой), проверяемые claims, timestamp/replay policy, создание
-нового User, linking существующего password account и future unlink behavior.
-
-Для текущего MVP выбран Telegram Login Widget; точные claims, timestamp/replay
-policy и backend verification должны быть раскрыты в auth spec. Linking и
-unlink отложены.
-
-## API permission baseline and error contract
-
-Нужно принять, будет ли `IsAuthenticated` глобальным default с явным public
-allowlist или permissions будут назначаться endpoint-by-endpoint. Отдельно нужно
-утвердить точную нормализацию DRF validation errors и единый error envelope
-(`code`, `detail`, field errors/status mapping). До решения feature specs должны
-указывать эти контракты явно.
-
-## Refresh rotation and reuse policy
-
-Revocation/blacklist refresh tokens уже обязательны. Нужно отдельно решить,
-использует ли общий auth слой rotation/reuse detection или допускает
-non-rotating refresh tokens. Example spec содержит локальный non-rotating choice,
-но не закрывает глобальный auth decision.
-
-## Production cookie topology
-
-Текущий план использует Vercel и Render, но production refresh cookie требует
-поддерживаемую first-party topology: sibling custom domains под одним
-registrable domain или same-origin backend proxy/BFF. Нужно выбрать topology,
-credentialed CORS/trusted origins и browser support policy до production auth
-rollout.
-
-## 2. Password reset and account deletion
-
-Password reset объявлен обязательным, но email optional, delivery channel и
-identity verification не определены. Нужно выбрать reset channel/expiry/rate
-limits. Для self-delete нужно подтвердить re-authentication/confirmation и
-retention policy для удалённых данных.
-
-## 3. Profile and study preferences
-
-Prototype показывает university, course, semester goal, daily load и selected
-subjects. Backend architecture пока фиксирует только User и learning/content
-entities.
-
-Нужно решить, входят ли эти поля и «мои предметы» в MVP backend, кто owns их и
-сохраняются ли они как profile/preferences entities.
-
-## 4. Subject/Section/Topic contract
-
-Нужно утвердить полный MVP field set и relationships, включая:
-
-- display/order semantics;
-- section/topic status and visibility;
-- topic summary/duration/latin title, если они обязательны;
-- поведение пустых разделов и тем.
-
-## 5. Slugs and URL stability
-
-Нужно определить uniqueness scope slug (global или внутри parent), collision
-handling, allowed characters, manual override validation и нужны ли redirect/
-history после изменения опубликованного slug.
-
-## 6. ContentBlock workflow
-
-Нужно зафиксировать:
-
-- список и lifecycle ContentBlockType;
-- ordering mechanism;
-- raw HTML policy для Markdown;
-- кто может переводить status и какие переходы разрешены помимо уже принятого
-  прямого manual создания как `published`;
-- preview visibility for unpublished content;
-- связь block с Media/File.
-
-## 7. Flashcard semantics
-
-Нужно выбрать names/shape `question`/`answer`, optional difficulty, ordering,
-status, правила «Знаю/Повторить», API/CMS flow, orphan lifecycle и выдачу
-Flashcard без Topic. Nullable Topic relation уже принято; FSRS runtime остаётся
-deferred, но current review API зависит от этих semantics.
-
-## 8. Quiz semantics and attempt storage
-
-Нужно решить:
-
-- один или несколько Quiz на Topic;
-- Quiz title/description;
-- minimum answers and explanation requirement;
-- question/answer ordering and answer shuffle;
-- difficulty;
-- exact compact structure for wrong answers;
-- resume model for unfinished attempt;
-- whether an attempt may be submitted more than once;
-- score rounding and per-question result visibility.
-
-Single-choice, one correct answer, unlimited retake, persisted attempts and no
-timeout are already accepted; перечисленные детали — нет.
-
-## 9. Topic completion and progress
-
-Accepted docs allow manual and score-based completion, но threshold и точная
-formula не закреплены. Frontend prototype использует 80% and averages theory,
-cards and best quiz score.
-
-Нужно выбрать backend source of truth, transition rules for `not_started`,
-`learning`, `learned`, reset behavior and whether completion can regress.
-
-## 10. Paywall and subscriptions
-
-Базовая content access model уже принята:
+Базовая content access model уже принята и реализована:
 
 - основной boundary — Topic;
 - `access_level = demo | free | paid`;
 - `demo` доступен anonymous;
 - `free` требует authentication;
 - `paid` требует authentication + entitlement;
-- отдельные child elements внутри `free`/`paid` Topic могут быть explicit demo preview;
-- сложная ACL/inheritance model в MVP не вводится.
+- child elements внутри free/paid могут быть explicit demo preview;
+- editor/admin role не является paid-access bypass;
+- content и learning получают entitlement только через
+  `apps.subscriptions.policy`.
 
-Остаётся определить:
+Остаётся определить отдельной subscriptions spec:
 
-- Subscription status machine and overlap rules;
-- как конкретные Plan/Tariff дают entitlement к `paid` content;
-- trial eligibility/expiration;
-- Plan/Subscription retention, cancellation, expiry and account-deletion behavior;
-- whether editor/admin bypasses paid access;
-- payment provider and webhook boundary.
+- Plan/Tariff model и mapping plan → entitlement;
+- Subscription status machine;
+- overlap/renewal rules;
+- trial eligibility и expiration;
+- starts/expires/cancel semantics;
+- retention и account-deletion behavior;
+- как entitlement меняется при cancellation/expiry;
+- payment provider boundary;
+- webhook idempotency/authenticity и связь payment events с Subscription.
 
-Plan/Subscription models are required now, provider integration is not.
+Конкретный payment provider всё ещё TBD. Его выбор не должен протекать в
+`content` или `learning`.
 
-## 11. Import and bulk operations
+## 2. Topic completion owner decisions
 
-Нужно утвердить:
+Backend 003 уже фиксирует `not_started / learning / learned`, manual completion
+и theory-percent semantics.
 
-- import identity/upsert keys;
-- behavior for removed items on repeated import;
-- atomicity (whole file vs per entity);
-- admin upload format and error report;
-- bulk publish authorization and status transitions;
-- synchronous vs background execution.
+Открыты два owner-level решения:
 
-Until this is decided, no Celery or implicit duplicate-prevention strategy is
-added.
+1. Какой threshold разрешает score-based automatic topic completion. Глобальный
+   pass percentage нельзя придумывать молча.
+2. Должен ли submitted quiz attempt продолжать раскрывать
+   `correct_answer_ids`, если retakes остаются unlimited.
 
-## 12. Media storage contract
+До первого решения backend возвращает score/results, но не делает
+score-based auto-completion.
 
-Нужно выбрать object-storage provider, URL strategy (signed/public), upload
-limits, allowed MIME types and cleanup behavior after physical deletion.
+## 3. Profile and study preferences
 
-## 13. Background jobs
+Prototype показывает university, course, semester goal, daily load и selected
+subjects. Эти данные не входят в текущие реализованные backend feature slices.
 
-Нужно решить, есть ли в MVP use case, который действительно требует Celery или
-другой worker. Пока synchronous services are the default, Redis is cache only,
-и новая queue infrastructure запрещена без отдельного решения.
+Нужно решить:
+
+- входят ли они в MVP;
+- какие поля действительно сохраняются;
+- кто owns profile/preferences;
+- нужна ли отдельная сущность «мои предметы»;
+- privacy/update semantics.
+
+## 4. Slugs and public URL stability
+
+ADR 0008 оставляет slug вспомогательным URL-представлением, но текущий public
+API использует numeric IDs.
+
+Для будущих slug-based public URLs нужно определить:
+
+- uniqueness scope;
+- collision handling;
+- allowed/manual override rules;
+- нужны ли redirect/history после изменения slug.
+
+Это не блокирует текущий numeric-ID API.
+
+## 5. Content workflow extensions
+
+Базовые content entities, published reads, manual published creation,
+external-id upsert и synchronous Content API уже реализованы.
+
+Для будущего расширения остаётся решить только то, чего текущий contract не
+требует:
+
+- дополнительные status transitions/workflow;
+- preview unpublished content;
+- отдельные bulk publish/import operations;
+- removal semantics для массовой синхронизации внешнего набора.
+
+Не добавлять ImportJob или очередь только ради этих будущих возможностей.
+
+## 6. Production object storage
+
+Media storage abstraction и S3-compatible adapter уже реализованы. Остаётся
+deployment decision:
+
+- конкретный S3-compatible provider;
+- bucket/lifecycle/backups;
+- production credentials/rotation;
+- reverse-proxy/access-log configuration.
+
+Protected bucket должен оставаться private. Capability URL paths
+`/api/v1/media/upload/` и `/api/v1/media/file/` не должны попадать в access
+logs.
+
+## 7. Background jobs
+
+Подтверждённого MVP use case, который требует Celery/worker, сейчас нет.
+Synchronous services остаются default, Redis — cache.
+
+Если появится конкретная долгая/асинхронная операция, отдельно определить:
+
+- зачем она не может быть synchronous;
+- retry/idempotency;
+- queue ownership;
+- operational/deployment cost.
+
+До такого решения Celery/Kafka/RabbitMQ не добавляются.
+
+## 8. Future identity extensions
+
+Текущий MVP — Telegram-only и уже реализован.
+
+Password/email auth, password reset, account linking и Telegram unlink являются
+future scope, а не блокерами текущего MVP. Если они вернутся в roadmap, для них
+нужен отдельный identity contract; не выводить их из legacy prototype.
