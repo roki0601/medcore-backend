@@ -1,6 +1,7 @@
 # Current state
 
-Статус среза: 2026-09-18 после merge backend foundation.
+Статус среза: 2026-09-20 после merge backend features 001, 002, 004, 003 и
+OpenAPI contract follow-up.
 
 Этот документ описывает фактическое состояние `medcore-backend`, а не желаемый
 результат. Целевая backend-архитектура находится в
@@ -8,110 +9,133 @@
 
 ## Краткий вывод
 
-Backend foundation уже реализован. Репозиторий больше не является пустым
-skeleton: создан Django/DRF project, базовые domain apps, custom User,
-PostgreSQL/Redis configuration, healthcheck, OpenAPI, Docker/Compose и quality
-tooling.
+Backend больше не является foundation/skeleton-проектом. На текущем `main`
+реализованы и смержены:
 
-При этом продуктовые feature domains ещё в основном не реализованы: content,
-learning, subscriptions и media пока содержат только app skeleton, а полноценный
-auth/JWT flow ещё должен быть реализован по feature specs.
+- Telegram-only authentication и account lifecycle;
+- публичный content catalog и Topic-level access model `demo/free/paid`;
+- synchronous content authoring API;
+- provider-neutral media layer с local dev backend и S3-compatible production
+  backend;
+- server-backed learning state: topic progress, block completion, flashcard
+  review и quiz attempts;
+- OpenAPI contract, согласованный с runtime payloads/errors/auth.
+
+Следующая крупная backend-граница — `subscriptions/paywall`. Для неё уже есть
+public policy seam, но реального entitlement storage, Plan/Subscription
+lifecycle и payment integration ещё нет.
 
 ## Что реально есть в backend-репозитории
 
 | Область | Фактическое состояние |
 |---|---|
-| Django project | есть `manage.py`, `config/`, settings, ASGI/WSGI, URLs |
+| Django project | `manage.py`, `config/`, settings, ASGI/WSGI, versioned URLs |
 | Django apps | `common`, `users`, `content`, `learning`, `subscriptions`, `media` |
-| User model | есть custom `users.User`: unique username, optional email/telegram identity, roles, timestamps |
-| Content models | ещё не реализованы |
-| Learning models | ещё не реализованы |
-| Subscription models | ещё не реализованы |
-| Media models | ещё не реализованы |
-| REST API | foundation есть; `/api/v1/health/` реализован |
-| Authentication | Django auth foundation есть; JWT/Telegram/password API flow ещё не реализован |
-| OpenAPI | `drf-spectacular` подключён, docs доступны через `/api/v1/docs/` |
-| Database | PostgreSQL configured |
-| Cache | Redis configured as Django cache |
+| User/auth | custom User, unique `telegram_id`, mutable unique username, roles; Telegram Login Widget, access JWT, HttpOnly refresh session, revocation, logout/logout-all, self-delete |
+| Content | Subject, Section, Topic, ContentBlock, Source, Flashcard, Quiz/Question/Answer; public catalog/read API and controlled authoring API |
+| Access | Topic `demo/free/paid`, anonymous demo/preview, free-after-auth, paid-through `subscriptions.policy` |
+| Learning | topic progress, block completion, flashcard reviews/scheduling, persisted/resumable quiz attempts and submit results |
+| Subscriptions | app + `has_paid_content_entitlement(user)` policy seam; currently deny-by-default, no Plan/Subscription storage yet |
+| Media | MediaFile metadata, upload/access URL flow, local dev storage, S3-compatible adapter, protected access policy |
+| Integration | synchronous REST content API with separate integration key; no ImportJob/Celery |
+| REST API | `/api/v1/`, common error envelope, pagination, scoped throttling and feature permissions |
+| OpenAPI | drf-spectacular schema/docs; runtime contracts covered by follow-up tests |
+| Database/cache | PostgreSQL + Redis cache |
 | Dependencies | `pyproject.toml` + `uv.lock`, Python 3.12 |
-| Tests/tooling | pytest, pytest-django, Ruff, pre-commit configured |
-| Infrastructure | Dockerfile, `compose.yaml`, `.env.example`, Makefile, GitHub automation |
-| Documentation | `AGENTS.md`, architecture docs, spec template и example spec |
+| Tests/tooling | pytest/pytest-django, Ruff, pre-commit, GitHub Actions |
+| Infrastructure | Dockerfile, Compose, environment configuration, Gunicorn; production object-storage provider still deployment TBD |
 
-Backend foundation был смержен в `main` 2026-09-18. Поэтому новые агенты должны
-считать существующий код и tooling реальной baseline-реализацией, а не
-планируемой структурой.
+## Реализованные feature slices
 
-## Уже реализованные foundation decisions
+### 001 — Telegram auth and account
 
-- Django + DRF modular monolith;
-- Python 3.12 + `uv`;
-- PostgreSQL как primary datastore;
-- Redis как cache;
-- domain apps: `users`, `content`, `learning`, `subscriptions`, `media`, `common`;
-- custom User с `BigAutoField` direction, username, optional email/Telegram identity, role;
-- `/api/v1/health/` как anonymous liveness endpoint;
-- OpenAPI через drf-spectacular;
-- CORS/CSRF configuration hooks;
-- Docker/Compose и Gunicorn;
-- pytest + Ruff + pre-commit.
+Реализованы verified Telegram Login Widget payload, replay/freshness protection,
+access JWT + server-revocable refresh sessions, CSRF-protected cookie
+operations, current account read/update, logout, logout-all и account deletion.
 
-Эти foundation choices уже представлены в коде. Менять их как будто это ещё
-чистый design space нельзя без отдельного решения.
+Password/email registration/login не являются частью текущего MVP по ADR 0008.
+
+### 002 — Content catalog and access
+
+Реализованы hierarchy `Subject → Section → Topic`, published content blocks,
+public-safe catalog/search и единый Topic access boundary:
+
+- `demo` — доступен anonymous;
+- `free` — полный доступ после authentication;
+- `paid` — требует entitlement;
+- free/paid могут отдавать explicit demo preview.
+
+Реальный paid entitlement пока отсутствует: текущая
+`apps.subscriptions.policy.has_paid_content_entitlement` честно возвращает
+`False` до отдельной subscriptions feature.
+
+### 004 — Content API and media
+
+Реализован synchronous authoring API для content entities, external IDs/upsert,
+integration-key authentication, media metadata/storage abstraction и
+upload/access URL flow.
+
+Local storage предназначен только для dev/test и запрещён system check вне
+`DEBUG`. Production использует S3-compatible adapter после настройки
+конкретного provider.
+
+### 003 — Learning state
+
+Реализованы:
+
+- `not_started / learning / learned` topic state;
+- completion опубликованных theory blocks и derived theory percent;
+- flashcard `know/repeat` scheduling;
+- review-due;
+- persisted quiz attempts, resume, answer state и submit;
+- frozen submitted results and best score derivation;
+- permission/access re-checks for every learning operation.
+
+Глобальный quiz pass threshold и score-based automatic topic completion
+намеренно не реализованы до owner decision.
 
 ## Что ещё не реализовано
 
-- JWT access/refresh и refresh revocation/blacklist;
-- Telegram verification/login;
-- password registration/login/reset/change;
-- content domain models и API;
-- learning/progress models и API;
-- Plan/Subscription/paywall policy;
-- Media/File storage integration;
-- import/bulk publish workflow;
-- throttling policy по конкретным endpoints;
-- feature-specific permissions;
-- основные product feature tests.
+- Plan/Tariff/Subscription models и реальный entitlement source;
+- subscription status machine, trial/expiry/cancellation/overlap semantics;
+- payment provider и webhook boundary;
+- score threshold для automatic topic completion;
+- финальное решение, нужно ли раскрывать `correct_answer_ids` после submit при
+  unlimited retakes;
+- конкретный production object-storage provider;
+- slug-based public user-facing URLs и redirect/history policy;
+- отдельные bulk/import workflow сверх уже существующего synchronous REST API;
+- background jobs/queue infrastructure — текущего подтверждённого MVP use case
+  для них нет.
 
 ## Контекст из соседних репозиториев
 
 `medcore-docs` остаётся источником принятых продуктовых решений. Важные
 источники:
 
-- `decisions/0004-mvp-decision-register.md` — исходный подробный реестр;
-- `decisions/0005-decision-register-audit.md` — аудит и правила приоритета;
-- `decisions/0006-anonymous-demo-content.md` — публичный demo-контент до auth;
-- `decisions/0007-content-access-model.md` — Topic access `demo/free/paid` и demo-preview;
+- `decisions/0004-mvp-decision-register.md`;
+- `decisions/0005-decision-register-audit.md`;
+- `decisions/0006-anonymous-demo-content.md`;
+- `decisions/0007-content-access-model.md`;
+- `decisions/0008-mvp-auth-content-and-integration-contract.md`;
 - `product/mvp.md`;
-- `architecture/*`;
-- `ai/context.md` и `AGENTS.md`.
+- `ai/context.md`.
 
-`medcore-frontend` содержит статический prototype «Кафедра», styleguide и
-frontend spec. Он является визуальным/поведенческим референсом, но localStorage,
-demo IDs и локальная auth-имитация не являются backend contract.
-
-## Актуальные продуктовые различия с frontend prototype
-
-- demo auth во frontend использует email, тогда как backend baseline использует
-  unique username и optional email;
-- anonymous demo flow принят; основной access boundary — Topic с
-  `demo/free/paid`, а content feature spec должна уточнить только конкретный
-  preview marker/API shape;
-- frontend demo хранит progress в localStorage, тогда как настоящий progress
-  принадлежит `learning` и после auth хранится на backend;
-- frontend prototype может содержать временные формулы прогресса/пороги; они не
-  становятся backend contract без отдельного решения.
+`medcore-frontend` содержит frozen prototype/styleguide как visual reference и
+production Next.js implementation. Prototype-local auth/progress formulas не
+являются backend contract.
 
 ## Что следует считать source of truth
 
 1. Более новые явно принятые decisions/ADR в `medcore-docs`.
 2. Backend-specific architecture в `docs/architecture/`.
-3. Approved implementation-ready feature spec.
+3. Approved implementation-ready feature spec + recorded delegated decisions.
 4. Existing code/tests как фактическая baseline-реализация; конфликт с более
    высоким source of truth должен быть эскалирован, а не принят молча.
 
 ## Итог для следующего этапа
 
-Foundation повторно создавать не нужно. Следующий этап — reconciliation
-оставшихся open questions и написание feature specs, после чего coding-agent
-реализует auth/content/learning/subscriptions поверх уже существующего skeleton.
+Foundation, auth, content, media и learning повторно проектировать не нужно.
+Следующий backend product slice — `subscriptions/paywall`: сначала
+implementation-ready spec и owner decisions, затем plan/tasks и реализация.
+Параллельно frontend может потреблять уже смерженные media/learning contracts.
