@@ -26,9 +26,9 @@ run_model_smoke() {
   echo "$label: OK"
 }
 
-run_model_smoke DEEPSEEK @plan
-run_model_smoke LUNA @advisor
-run_model_smoke DEEPSEEK_REVIEW @senior_review
+run_model_smoke GROK_PLAN @plan
+run_model_smoke GEMINI_ADVISOR @advisor
+run_model_smoke GEMINI_REVIEW @senior_review
 
 ./scripts/ai/check-git-safety.sh
 echo "git safety check: OK"
