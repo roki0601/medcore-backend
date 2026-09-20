@@ -1,25 +1,25 @@
-# Project-local OMP settings for MedCore.
-# Model identifiers are resolved from the existing user catalog; credentials stay global.
-# DeepSeek is the primary project model. Thinking level is controlled by each
-# agent, so the selector intentionally has no ":max" suffix.
+# Project-local OMP settings for MedCore backend.
+# Grok owns design/planning and implementation. Gemini is reserved for two
+# bounded read-only review points: design/spec review and final review after the
+# deterministic backend quality gate.
 modelRoleStorage: project
 
 modelRoles:
-  default: openrouter/deepseek/deepseek-v4.1-flash
-  task: openrouter/deepseek/deepseek-v4.1-flash
-  commit: openrouter/deepseek/deepseek-v4.1-flash
+  default: xai-oauth/grok-4.6
+  task: xai-oauth/grok-4.6
+  commit: xai-oauth/grok-build-0.1
 
-  plan: openrouter/deepseek/deepseek-v4.1-flash
-  slow: openrouter/deepseek/deepseek-v4.1-flash
-  vision: openrouter/deepseek/deepseek-v4.1-flash
+  plan: xai-oauth/grok-4.6
+  slow: xai-oauth/grok-4.6
+  vision: google-antigravity/gemini-3.8-flash
 
-  architect: openrouter/deepseek/deepseek-v4.1-flash
-  senior_review: openrouter/deepseek/deepseek-v4.1-flash
-  advisor: openai-codex/gpt-5.6-luna
-  escalation: openai-codex/gpt-5.6-luna
+  architect: xai-oauth/grok-4.6
+  senior_review: google-antigravity/gemini-3.8-flash
+  advisor: google-antigravity/gemini-3.8-flash
+  escalation: google-antigravity/claude-opus-4-6
 
-# Luna is deliberately not attached to every turn. The manager invokes the
-# read-only watchdog explicitly when an escalation trigger is present.
+# No standing advisor loop. Reviewers are spawned explicitly by the manager at
+# the bounded workflow gates described in AUTONOMOUS_REVIEW.md.
 advisor:
   enabled: false
   syncBacklog: 1
