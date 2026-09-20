@@ -7,11 +7,11 @@ accepted product decisions, approved specs, architecture documents or
 ## Current state
 
 - Stage: `READY_FOR_REVIEW`.
-- Active feature: `BE-007` (`007-progress-dashboard`).
-  - Progress/dashboard aggregate API.
-  - Authenticated own-user aggregate endpoint `GET /api/v1/dashboard/`.
-  - Aggregates started topics with theory progress, due flashcards, and quiz attempt summaries.
-  - Implementation, tests, OpenAPI, and spec completed in `feature/007-progress-dashboard`.
+- Active feature: `BE-008` (`008-profile-preferences`).
+  - User profile and study preferences.
+  - Authenticated own-user endpoints `GET /api/v1/profile/`, `PATCH /api/v1/profile/`.
+  - Persistent `UserProfile` model (`university`, `course`, `semester_goal`, `daily_study_minutes`, `selected_subjects`).
+  - Implementation, tests, OpenAPI, and spec completed in `feature/008-profile-preferences`.
 - Shipped backend feature specs:
   - `001-telegram-auth-account` — merged;
   - `002-content-catalog-access` — merged;
@@ -19,15 +19,16 @@ accepted product decisions, approved specs, architecture documents or
   - `003-learning-state` — merged;
   - `005-subscriptions-paywall` — merged;
   - `006-robokassa-payment` — merged (PR #14);
+  - `007-progress-dashboard` — merged;
   - OpenAPI/runtime contract follow-up — merged.
-- Pending review: `007-progress-dashboard`.
-- Later roadmap items BE-008–BE-010 are explicitly BLOCKED until their listed
+- Pending review: `008-profile-preferences`.
+- Later roadmap items BE-009–BE-010 are explicitly BLOCKED until their listed
   owner/upstream decisions exist.
 - Human review and merge remain required; auto-merge is forbidden.
 
 ## Current validated baseline
 
-Backend 003 learning state, 005 subscriptions paywall core, and OpenAPI follow-up
+Backend 003 learning state, 005 subscriptions paywall core, 007 progress dashboard, and OpenAPI follow-up
 are already merged. The baseline includes:
 
 - Telegram-only auth/session contract;
@@ -38,6 +39,7 @@ are already merged. The baseline includes:
 - flashcard review API;
 - resumable quiz attempts and scoring;
 - subscriptions core (`Plan`, `Subscription`, `has_paid_content_entitlement(user)`);
+- user dashboard progress aggregates;
 - OpenAPI coverage for shipped routes.
 
 Do not reopen these contracts merely because the next feature touches the same
@@ -52,8 +54,8 @@ Order:
 
 1. BE-005 — subscription core and paid entitlement — `MERGED`;
 2. BE-006 — payment provider integration — `MERGED`;
-3. BE-007 — dashboard/progress aggregate API — `READY_FOR_REVIEW`;
-4. BE-008 — profile/study preferences — `BLOCKED`;
+3. BE-007 — dashboard/progress aggregate API — `MERGED`;
+4. BE-008 — profile/study preferences — `READY_FOR_REVIEW`;
 5. BE-009 — content bulk/import extensions — `BLOCKED`;
 6. BE-010 — slug-based public URLs — `BLOCKED`.
 

@@ -1,33 +1,18 @@
 # BE-008 — Profile and study preferences
 
-Status: BLOCKED
+Status: READY_FOR_REVIEW
 
-## Why blocked
+## Implementation Summary
 
-The prototype mentions university, course, semester goal, daily load and
-selected subjects, but accepted backend sources explicitly leave profile/study
-preferences unresolved.
-
-Do not infer persistence fields from the prototype.
-
-## Owner decisions required
-
-Before a spec:
-
-- confirm whether study preferences are in MVP;
-- exact fields to persist;
-- which fields are optional;
-- whether university/course are free text or references/enums;
-- whether "selected subjects" is a persistent relation or just catalog UI;
-- update permissions;
-- privacy/export/delete semantics;
-- whether these fields live directly on User or in a separate profile model.
-
-## Fixed boundaries
-
-- Telegram auth identity fields stay separate from study preferences;
-- do not make optional profile data required for login;
-- self-service account deletion rules must cover the accepted profile data;
-- do not expose profile fields publicly by default.
-
-No code should be created while this remains BLOCKED.
+Owner decisions for MVP were accepted and implemented:
+- Study preferences are in MVP under `apps.users`.
+- Persistent `UserProfile` model created with OneToOne relation to `User`.
+- Telegram auth identity fields remain untouched on `User`.
+- Fields: `university` (free text), `course` (1..6, nullable), `semester_goal` (short text), `daily_study_minutes` (1..1440, nullable), `selected_subjects` (M2M to `Subject`).
+- Self-service endpoints: `GET /api/v1/profile/`, `PATCH /api/v1/profile/`.
+- Privacy: private to current user; no public profile or listing.
+- Deletion: `CASCADE` on `UserProfile` when `User` is deleted.
+- Non-blocking: profile is optional and does not block login or access.
+- Decoupled: `selected_subjects` does not impact access control or paywall entitlement.
+- Spec: `specs/008-profile-preferences/spec.md`.
+- Contract: `specs/008-profile-preferences/contracts/profile-api.md`.

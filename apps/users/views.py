@@ -22,15 +22,19 @@ from .serializers import (
     DeleteAccountSerializer,
     RefreshTokenResponseSerializer,
     TelegramLoginRequestSerializer,
+    UserProfileSerializer,
+    UserProfileUpdateSerializer,
     UserSummarySerializer,
     UserUpdateSerializer,
 )
 from .services import (
     authenticate_telegram,
     delete_account,
+    get_or_create_profile,
     refresh_access_token,
     revoke_all_sessions,
     revoke_refresh_session,
+    update_profile,
     update_username,
 )
 from .throttles import (
@@ -245,3 +249,50 @@ class MeView(APIView):
         serializer.is_valid(raise_exception=True)
         delete_account(request.user)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ProfileView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def get_throttles(self):
+        if self.request.method == "PATCH":
+            return [AccountMutationThrottle()]
+        return []
+
+    @extend_schema(
+        responses={200: UserProfileSerializer, **ERROR_RESPONSES},
+        description=(
+            "Retrieve the current authenticated user's profile and study preferences."
+        ),
+    )
+    def get(self, request):
+        profile = get_or_create_profile(request.user)
+        return Response(UserProfileSerializer(profile).data)
+
+    @extend_schema(
+        request=UserProfileUpdateSerializer,
+        responses={200: UserProfileSerializer, **ERROR_RESPONSES},
+        description=(
+            "Partially update the current authenticated user's profile and "
+            "study preferences."
+        ),
+    )
+    def patch(self, request):
+        serializer = UserProfileUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        kwargs = {}
+        if "university" in data:
+            kwargs["university"] = data["university"]
+        if "course" in data:
+            kwargs["course"] = data["course"]
+        if "semester_goal" in data:
+            kwargs["semester_goal"] = data["semester_goal"]
+        if "daily_study_minutes" in data:
+            kwargs["daily_study_minutes"] = data["daily_study_minutes"]
+        if "validated_subject_ids" in data:
+            kwargs["subject_ids"] = data["validated_subject_ids"]
+
+        profile = update_profile(request.user, **kwargs)
+        return Response(UserProfileSerializer(profile).data)
