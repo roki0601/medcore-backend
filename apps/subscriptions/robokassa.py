@@ -136,11 +136,16 @@ def validate_robokassa_configuration() -> None:
     """Ensure Robokassa payment settings are present and valid."""
     merchant_login = getattr(settings, "ROBOKASSA_MERCHANT_LOGIN", "")
     password_1 = getattr(settings, "ROBOKASSA_PASSWORD_1", "")
+    password_2 = getattr(settings, "ROBOKASSA_PASSWORD_2", "")
     hash_algorithm = getattr(settings, "ROBOKASSA_HASH_ALGORITHM", "sha256")
 
-    if not str(merchant_login).strip() or not str(password_1).strip():
+    if (
+        not str(merchant_login).strip()
+        or not str(password_1).strip()
+        or not str(password_2).strip()
+    ):
         raise RobokassaConfigurationError(
-            "Robokassa merchant login or Password #1 is not configured."
+            "Robokassa merchant login or passwords are not configured."
         )
 
     algo = str(hash_algorithm).strip().lower()

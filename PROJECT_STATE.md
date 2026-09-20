@@ -6,12 +6,11 @@ accepted product decisions, approved specs, architecture documents or
 
 ## Current state
 
-- Stage: `READY_FOR_REVIEW`.
-- Active feature: `BE-008` (`008-profile-preferences`).
-  - User profile and study preferences.
-  - Authenticated own-user endpoints `GET /api/v1/profile/`, `PATCH /api/v1/profile/`.
-  - Persistent `UserProfile` model (`university`, `course`, `semester_goal`, `daily_study_minutes`, `selected_subjects`).
-  - Implementation, tests, OpenAPI, and spec completed in `feature/008-profile-preferences`.
+- Stage: `IN_PROGRESS`.
+- Active activity: `MVP_BACKEND_HARDENING` (`hardening/mvp-production-readiness`).
+  - Cross-cutting security, data integrity, payment, production configuration,
+    API contract and operational-readiness audit of the shipped MVP backend.
+  - This is hardening of accepted behavior, not a new product feature.
 - Shipped backend feature specs:
   - `001-telegram-auth-account` — merged;
   - `002-content-catalog-access` — merged;
@@ -19,16 +18,18 @@ accepted product decisions, approved specs, architecture documents or
   - `003-learning-state` — merged;
   - `005-subscriptions-paywall` — merged;
   - `006-robokassa-payment` — merged (PR #14);
-  - `007-progress-dashboard` — merged;
+  - `007-progress-dashboard` — merged (PR #15);
+  - `008-profile-preferences` — merged (PR #16);
   - OpenAPI/runtime contract follow-up — merged.
-- Pending review: `008-profile-preferences`.
 - Later roadmap items BE-009–BE-010 are explicitly BLOCKED until their listed
   owner/upstream decisions exist.
-- Human review and merge remain required; auto-merge is forbidden.
+- Human review and merge of the hardening branch remain required; auto-merge is
+  forbidden.
 
 ## Current validated baseline
 
-Backend 003 learning state, 005 subscriptions paywall core, 007 progress dashboard, and OpenAPI follow-up
+Backend 003 learning state, 005 subscriptions paywall core, 006 payments,
+007 progress dashboard, 008 profile preferences, and OpenAPI follow-up
 are already merged. The baseline includes:
 
 - Telegram-only auth/session contract;
@@ -39,7 +40,9 @@ are already merged. The baseline includes:
 - flashcard review API;
 - resumable quiz attempts and scoring;
 - subscriptions core (`Plan`, `Subscription`, `has_paid_content_entitlement(user)`);
+- Robokassa one-time payment integration and retained financial records;
 - user dashboard progress aggregates;
+- private user profile and study preferences;
 - OpenAPI coverage for shipped routes.
 
 Do not reopen these contracts merely because the next feature touches the same
@@ -55,7 +58,7 @@ Order:
 1. BE-005 — subscription core and paid entitlement — `MERGED`;
 2. BE-006 — payment provider integration — `MERGED`;
 3. BE-007 — dashboard/progress aggregate API — `MERGED`;
-4. BE-008 — profile/study preferences — `READY_FOR_REVIEW`;
+4. BE-008 — profile/study preferences — `MERGED`;
 5. BE-009 — content bulk/import extensions — `BLOCKED`;
 6. BE-010 — slug-based public URLs — `BLOCKED`.
 
@@ -110,8 +113,8 @@ failed check. After convergence, run the full gate once for final evidence.
   source.
 - No concrete object-storage provider is selected.
 - Capability paths for protected media must not be access-logged.
-- Bulk/import, profile/preferences, slug URL migration and dashboard aggregates
-  stay blocked until their roadmap brief says otherwise.
+- Bulk/import and slug URL migration stay blocked until their roadmap brief says
+  otherwise.
 - Do not add Celery/Kafka/RabbitMQ without a concrete accepted use case.
 
 ## Source-of-truth pointers

@@ -183,6 +183,18 @@ class UserProfileUpdateSerializer(serializers.Serializer):
         return super().to_internal_value(data)
 
     def validate(self, attrs):
+        if "selected_subject_ids" in attrs and "selected_subjects" in attrs:
+            message = "Send only one subject selection field."
+            raise APIError(
+                "Only one subject selection field may be provided.",
+                code="INVALID_REQUEST",
+                status_code=400,
+                fields={
+                    "selected_subject_ids": [message],
+                    "selected_subjects": [message],
+                },
+            )
+
         subject_ids = None
         if "selected_subject_ids" in attrs:
             subject_ids = attrs["selected_subject_ids"]

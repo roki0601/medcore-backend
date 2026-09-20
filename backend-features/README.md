@@ -27,7 +27,7 @@ For each run:
 | 1 | [BE-005 Subscription core and paid entitlement](BE-005-subscriptions-core.md) | MERGED | Shipped in PR #13 after ADR 0009 approval |
 | 2 | [BE-006 Payment provider integration](BE-006-payment-provider.md) | MERGED | Shipped in PR #14 (Robokassa MVP) |
 | 3 | [BE-007 Progress/dashboard aggregate API](BE-007-progress-dashboard.md) | MERGED | Dashboard aggregate merged |
-| 4 | [BE-008 Profile and study preferences](BE-008-profile-preferences.md) | READY_FOR_REVIEW | Profile and study preferences implemented |
+| 4 | [BE-008 Profile and study preferences](BE-008-profile-preferences.md) | MERGED | Shipped in PR #16 |
 | 5 | [BE-009 Content bulk/import extensions](BE-009-content-bulk-import.md) | BLOCKED | bulk identity/removal/workflow semantics not accepted |
 | 6 | [BE-010 Slug-based public URLs](BE-010-slug-public-urls.md) | BLOCKED | uniqueness/collision/redirect policy unresolved |
 

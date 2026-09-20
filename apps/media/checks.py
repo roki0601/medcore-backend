@@ -27,3 +27,40 @@ def check_local_storage_backend(app_configs, **kwargs) -> list[Error]:
             )
         ]
     return []
+
+
+@register(Tags.security)
+def check_storage_configuration(app_configs, **kwargs) -> list[Error]:
+    """Reject unknown backends and incomplete S3 configuration."""
+
+    backend = str(getattr(settings, "MEDIA_STORAGE_BACKEND", "")).strip().lower()
+    if backend not in {"local", "s3"}:
+        return [
+            Error(
+                f"MEDIA_STORAGE_BACKEND={backend!r} is not supported.",
+                hint="Set MEDIA_STORAGE_BACKEND to 'local' or 's3'.",
+                id="media.E002",
+            )
+        ]
+
+    if backend != "s3":
+        return []
+
+    missing = [
+        name
+        for name in (
+            "MEDIA_S3_BUCKET",
+            "MEDIA_S3_ACCESS_KEY",
+            "MEDIA_S3_SECRET_KEY",
+        )
+        if not str(getattr(settings, name, "")).strip()
+    ]
+    if not missing:
+        return []
+    return [
+        Error(
+            "S3 media storage is missing required settings: " + ", ".join(missing),
+            hint="Set the bucket and S3 credentials before starting the service.",
+            id="media.E003",
+        )
+    ]

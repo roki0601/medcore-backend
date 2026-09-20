@@ -1,6 +1,6 @@
 # Feature 008 — Profile and study preferences
 
-- Status: IMPLEMENTED (READY_FOR_REVIEW)
+- Status: MERGED (PR #16)
 - Date: 2026-09-20
 - Owning Django app: `apps.users`
 - Consumers: Authenticated own-user profile clients (web/mobile)

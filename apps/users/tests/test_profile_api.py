@@ -289,6 +289,33 @@ def test_unknown_subject_rejected(api_client, make_user, authenticate, subject_a
 
 
 @pytest.mark.django_db
+def test_selected_subject_aliases_cannot_be_sent_together(
+    api_client, make_user, authenticate, subject_anatomy
+):
+    """Conflicting subject field aliases are rejected without a partial update."""
+    user = make_user(username="ambiguous_subjects")
+    client = authenticate(api_client, user)
+
+    response = client.patch(
+        "/api/v1/profile/",
+        {
+            "selected_subject_ids": [subject_anatomy.id],
+            "selected_subjects": [],
+        },
+        format="json",
+    )
+
+    assert response.status_code == 400
+    data = response.json()
+    assert data["code"] == "INVALID_REQUEST"
+    assert data["fields"] == {
+        "selected_subject_ids": ["Send only one subject selection field."],
+        "selected_subjects": ["Send only one subject selection field."],
+    }
+    assert not UserProfile.objects.filter(user=user).exists()
+
+
+@pytest.mark.django_db
 def test_other_user_cannot_read_or_modify_profile(api_client, make_user, authenticate):
     """12. Each user sees only their own private profile; cannot modify other's."""
     user_alice = make_user(username="alice")

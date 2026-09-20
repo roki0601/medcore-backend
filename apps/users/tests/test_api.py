@@ -359,6 +359,7 @@ def test_delete_requires_confirmation_and_stale_access_cannot_reuse_account(clie
         format="json",
     )
     assert deleted.status_code == 204
+    assert deleted.cookies[settings.AUTH_REFRESH_COOKIE_NAME]["max-age"] == 0
     assert not User.objects.filter(pk=user_id).exists()
 
     stale = client.get("/api/v1/auth/me/")

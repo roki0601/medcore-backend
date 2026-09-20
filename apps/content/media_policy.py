@@ -6,6 +6,7 @@ from apps.common.exceptions import APIError
 from apps.content.access import evaluate_topic_access
 from apps.content.models import ContentBlock, Topic
 from apps.media.models import MediaFile
+from apps.subscriptions.policy import has_paid_content_entitlement
 
 
 @dataclass(frozen=True)
@@ -45,8 +46,11 @@ def decide_media_access(media: MediaFile, actor) -> MediaAccessDecision:
         .select_related("topic")
         .order_by("id")
     )
+    entitled: bool | None = None
     for block in blocks:
-        decision = evaluate_topic_access(block.topic, actor)
+        if block.topic.access_level == Topic.AccessLevel.PAID and entitled is None:
+            entitled = has_paid_content_entitlement(actor)
+        decision = evaluate_topic_access(block.topic, actor, entitled=entitled)
         if decision.full_access:
             return MediaAccessDecision(allowed=True, requires_authentication=False)
         if decision.is_demo_preview and block.is_demo_preview:

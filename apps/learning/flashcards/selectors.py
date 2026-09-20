@@ -14,6 +14,7 @@ from django.db.models import QuerySet
 from apps.content.access import evaluate_topic_access
 from apps.content.models import Flashcard, Topic
 from apps.learning.models import FlashcardReview
+from apps.subscriptions.policy import has_paid_content_entitlement
 
 
 def topic_flashcards(topic: Topic) -> QuerySet[Flashcard]:
@@ -49,12 +50,22 @@ def due_flashcard_reviews(user, *, now: datetime) -> list[FlashcardReview]:
         .order_by("next_review_at", "id")
     )
     accessible: dict[int, bool] = {}
+    entitled: bool | None = None
     due: list[FlashcardReview] = []
     for row in rows:
         topic_id = row.flashcard.topic_id
         allowed = accessible.get(topic_id)
         if allowed is None:
-            allowed = evaluate_topic_access(row.flashcard.topic, user).full_access
+            if (
+                row.flashcard.topic.access_level == Topic.AccessLevel.PAID
+                and entitled is None
+            ):
+                entitled = has_paid_content_entitlement(user)
+            allowed = evaluate_topic_access(
+                row.flashcard.topic,
+                user,
+                entitled=entitled,
+            ).full_access
             accessible[topic_id] = allowed
         if allowed:
             due.append(row)

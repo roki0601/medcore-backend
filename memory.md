@@ -94,3 +94,12 @@ implementation defaults.
   - Fields: `university` (free text), `course` (1..6 or null), `semester_goal` (short text), `daily_study_minutes` (1..1440 or null), `selected_subjects` (M2M to `content.Subject`).
   - Endpoints: `GET /api/v1/profile/` and `PATCH /api/v1/profile/` (`IsAuthenticated`, throttle `account_mutation` for PATCH).
   - Semantics: Strictly private to own user; GET returns canonical empty profile or creates it safely; PATCH partially updates allowed profile fields while rejecting forbidden/auth fields (`telegram_id`, `username`, `role`); `selected_subject_ids` replaces full set; unknown IDs rejected with 400; independent of access control (does not alter topic demo/free/paid evaluation).
+
+## Current activity
+
+- BE-001 through BE-008 are merged on `main`; BE-007 shipped in PR #15 and
+  BE-008 in PR #16.
+- `MVP_BACKEND_HARDENING` is in progress on
+  `hardening/mvp-production-readiness`; it may harden accepted behavior but must
+  not add product features or close unresolved product decisions.
+- BE-009 content bulk import and BE-010 slug URLs remain blocked/deferred.
