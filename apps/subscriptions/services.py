@@ -9,7 +9,11 @@ from django.db import transaction
 from django.utils import timezone
 
 from .models import Payment, Plan, Subscription
-from .robokassa import build_payment_url, verify_result_signature
+from .robokassa import (
+    build_payment_url,
+    validate_robokassa_configuration,
+    verify_result_signature,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +23,10 @@ def create_payment(*, user, plan_id: int) -> tuple[Payment, str]:
 
     Raises:
         ValidationError: if the plan does not exist or is inactive.
+        RobokassaConfigurationError: if Robokassa credentials are unconfigured.
     """
+    validate_robokassa_configuration()
+
     plan = Plan.objects.filter(id=plan_id, is_active=True).first()
     if plan is None:
         raise ValidationError({"plan_id": "Активный план подписки не найден."})
@@ -75,7 +82,7 @@ def process_robokassa_result(
         payment = (
             Payment.objects.select_for_update()
             .filter(id=inv_id)
-            .select_related("plan", "user")
+            .select_related("plan")
             .first()
         )
         if payment is None:
@@ -95,6 +102,10 @@ def process_robokassa_result(
             # Idempotent response: callback was already processed.
             logger.info("Robokassa ResultURL duplicate callback for InvId=%s", inv_id)
             return True, f"OK{inv_id}"
+
+        if payment.user is None:
+            logger.warning("Robokassa ResultURL user is deleted for InvId=%s", inv_id)
+            return False, "user not found"
 
         now = timezone.now()
         payment.status = Payment.Status.SUCCEEDED

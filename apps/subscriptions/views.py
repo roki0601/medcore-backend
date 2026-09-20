@@ -9,8 +9,10 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.common.exceptions import APIError
 from apps.common.serializers import APIErrorResponseSerializer
 
+from .robokassa import RobokassaConfigurationError
 from .selectors import get_active_subscription, list_active_plans
 from .serializers import (
     CreatePaymentRequestSerializer,
@@ -135,6 +137,12 @@ class PaymentInitView(generics.GenericAPIView):
                 field_errors = {"plan_id": exc.messages}
             raise DRFValidationError(
                 field_errors or {"plan_id": ["Invalid plan."]}
+            ) from exc
+        except RobokassaConfigurationError as exc:
+            raise APIError(
+                detail="Платежный шлюз временно недоступен.",
+                code="PAYMENT_PROVIDER_UNCONFIGURED",
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             ) from exc
 
         response_data = {

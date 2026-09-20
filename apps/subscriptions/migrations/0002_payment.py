@@ -27,7 +27,7 @@ class Migration(migrations.Migration):
                 ('updated_at', models.DateTimeField(auto_now=True)),
                 ('plan', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='payments', to='subscriptions.plan')),
                 ('subscription', models.OneToOneField(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='payment', to='subscriptions.subscription')),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='payments', to=settings.AUTH_USER_MODEL)),
+                ('user', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='payments', to=settings.AUTH_USER_MODEL)),
             ],
             options={
                 'ordering': ('-created_at', '-id'),

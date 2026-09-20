@@ -31,6 +31,15 @@ def api_client():
     return APIClient()
 
 
+@pytest.fixture(autouse=True)
+def configure_robokassa_test_settings(settings):
+    settings.ROBOKASSA_MERCHANT_LOGIN = "test_merchant"
+    settings.ROBOKASSA_PASSWORD_1 = "test_pass_1"
+    settings.ROBOKASSA_PASSWORD_2 = "test_pass_2"
+    settings.ROBOKASSA_HASH_ALGORITHM = "sha256"
+    settings.ROBOKASSA_TEST_MODE = True
+
+
 @pytest.fixture
 def user(db):
     return User.objects.create_user(
@@ -225,12 +234,20 @@ def test_payment_snapshot_price_immutability(user, plan):
 
 
 @pytest.mark.django_db
-def test_payment_cascade_user_deletion(user, plan):
+def test_payment_retention_on_user_deletion(user, plan):
     payment, _ = create_payment(user=user, plan_id=plan.id)
     payment_id = payment.id
 
     user.delete()
-    assert not Payment.objects.filter(id=payment_id).exists()
+
+    payment.refresh_from_db()
+    assert payment.user is None
+    assert payment.user_id is None
+    assert payment.amount == Decimal("990.00")
+    assert payment.plan == plan
+    assert payment.status == Payment.Status.PENDING
+    assert payment.provider == "robokassa"
+    assert Payment.objects.filter(id=payment_id).exists()
 
 
 @pytest.mark.django_db
@@ -321,6 +338,22 @@ def test_init_payment_missing_plan_id_returns_400(api_client, user):
     )
     assert response.status_code == 400
     assert response.json()["code"] == "INVALID_REQUEST"
+
+
+@pytest.mark.django_db
+def test_payment_init_rejects_unconfigured_provider(api_client, user, plan, settings):
+    settings.ROBOKASSA_MERCHANT_LOGIN = ""
+    settings.ROBOKASSA_PASSWORD_1 = ""
+
+    api_client.force_authenticate(user=user)
+    response = api_client.post(
+        "/api/v1/subscriptions/payments/",
+        {"plan_id": plan.id},
+        format="json",
+    )
+    assert response.status_code == 503
+    assert response.json()["code"] == "PAYMENT_PROVIDER_UNCONFIGURED"
+    assert Payment.objects.count() == 0
 
 
 # ==============================================================================
@@ -423,6 +456,39 @@ def test_robokassa_result_invalid_signature_rejected(api_client, user, plan, set
             "OutSum": "990.00",
             "InvId": str(payment.id),
             "SignatureValue": "bad_signature_hash",
+        },
+    )
+    assert response.status_code == 400
+    assert "bad request: bad signature" in response.content.decode("utf-8")
+
+    payment.refresh_from_db()
+    assert payment.status == Payment.Status.PENDING
+    assert payment.subscription is None
+    assert not has_paid_content_entitlement(user)
+
+
+@pytest.mark.django_db
+def test_robokassa_result_cannot_succeed_when_password_2_is_empty(
+    api_client, user, plan, settings
+):
+    settings.ROBOKASSA_MERCHANT_LOGIN = "test_merchant"
+    settings.ROBOKASSA_PASSWORD_1 = "test_pass_1"
+    settings.ROBOKASSA_PASSWORD_2 = "pass_two_test"
+
+    payment, _ = create_payment(user=user, plan_id=plan.id)
+
+    # Now password_2 is empty (e.g. misconfiguration in production)
+    settings.ROBOKASSA_PASSWORD_2 = ""
+
+    # Attacker tries to compute signature with empty password
+    forged_sig = hashlib.sha256(f"990.00:{payment.id}:".encode()).hexdigest()
+
+    response = api_client.post(
+        "/api/v1/subscriptions/payments/robokassa/result/",
+        {
+            "OutSum": "990.00",
+            "InvId": str(payment.id),
+            "SignatureValue": forged_sig,
         },
     )
     assert response.status_code == 400
@@ -577,3 +643,28 @@ def test_robokassa_success_and_fail_views(api_client):
     fail_resp = api_client.get("/api/v1/subscriptions/payments/robokassa/fail/")
     assert fail_resp.status_code == 200
     assert fail_resp.json()["status"] == "failed"
+
+
+# ==============================================================================
+# 6. Robokassa System Checks Tests
+# ==============================================================================
+
+
+def test_robokassa_system_checks_in_production(settings):
+    from apps.subscriptions.checks import check_robokassa_configuration
+
+    settings.DEBUG = False
+    settings.ROBOKASSA_MERCHANT_LOGIN = ""
+    settings.ROBOKASSA_PASSWORD_1 = ""
+    settings.ROBOKASSA_PASSWORD_2 = ""
+    settings.ROBOKASSA_HASH_ALGORITHM = "sha256"
+
+    errors = check_robokassa_configuration(None)
+    assert len(errors) == 1
+    assert errors[0].id == "subscriptions.E002"
+
+    settings.ROBOKASSA_HASH_ALGORITHM = "unsupported_algo"
+    errors = check_robokassa_configuration(None)
+    error_ids = {e.id for e in errors}
+    assert "subscriptions.E001" in error_ids
+    assert "subscriptions.E002" in error_ids
