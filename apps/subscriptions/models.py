@@ -8,6 +8,7 @@ from django.core.validators import MinValueValidator
 from django.db import models
 
 SUBSCRIPTION_STATUS_VALUES = ("active", "cancelled")
+PAYMENT_STATUS_VALUES = ("pending", "succeeded", "failed")
 
 
 class Plan(models.Model):
@@ -109,3 +110,65 @@ class Subscription(models.Model):
 
     def __str__(self) -> str:
         return f"Subscription #{self.pk} for User #{self.user_id} ({self.status})"
+
+
+class Payment(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        SUCCEEDED = "succeeded", "Succeeded"
+        FAILED = "failed", "Failed"
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="payments",
+    )
+    plan = models.ForeignKey(
+        Plan,
+        on_delete=models.PROTECT,
+        related_name="payments",
+    )
+    subscription = models.OneToOneField(
+        Subscription,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="payment",
+    )
+    amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+        db_index=True,
+    )
+    provider = models.CharField(max_length=30, default="robokassa")
+    paid_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-created_at", "-id")
+        indexes = [
+            models.Index(
+                fields=("user", "status"),
+                name="sub_payment_user_status_idx",
+            ),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(status__in=PAYMENT_STATUS_VALUES),
+                name="subscriptions_payment_status_valid",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(amount__gte=Decimal("0.00")),
+                name="subscriptions_payment_amount_non_negative",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"Payment #{self.pk} ({self.amount} RUB, {self.status})"

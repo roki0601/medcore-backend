@@ -73,4 +73,14 @@ implementation defaults.
   - `Subscription.user` uses `CASCADE` on delete.
   - Endpoints: public `GET /api/v1/subscriptions/plans/` and authenticated `GET /api/v1/subscriptions/current/`.
   - Manual management via Django Admin.
-- Payment provider integration (BE-006: YooKassa/Robokassa/Stripe, webhooks, checkout/purchase flow, receipts, financial audit retention, trial eligibility) remains explicitly unresolved/TBD.
+- Payment provider integration (BE-006: Robokassa MVP):
+  - Provider: Robokassa for one-time manual Plan purchase (no recurring/autopay, no stored card credentials, no background workers).
+  - Fiscalization: Робочеки СМЗ (self-employed + "Мой налог"), delegated to Robokassa cabinet. Buyer email is passed in initialization URL if available.
+  - Model: `Payment` with fields `id` (InvId), `user`, `plan`, `subscription`, `amount` (immutable snapshot of plan price), `status` (pending/succeeded/failed), `provider`, `paid_at`.
+  - Signatures: Password #1 for checkout URL; Password #2 for ResultURL callback. Constant-time comparison `hmac.compare_digest`.
+  - Concurrency & Idempotency: `process_robokassa_result` runs in `transaction.atomic()` with `select_for_update()`; duplicate callbacks return `OK{InvId}` safely without creating extra subscriptions.
+  - Endpoints:
+    - `POST /api/v1/subscriptions/payments/` (`IsAuthenticated`, initiates payment, returns `payment_id`, `payment_url`);
+    - `POST` / `GET` `/api/v1/subscriptions/payments/robokassa/result/` (`AllowAny`, validates signature, activates subscription, returns plaintext `OK{InvId}`);
+    - `GET` / `POST` `/api/v1/subscriptions/payments/robokassa/success/` and `fail/` (buyer landing redirects/status).
+
