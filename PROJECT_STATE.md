@@ -6,22 +6,22 @@ accepted product decisions, approved specs, architecture documents or
 
 ## Current state
 
-- Stage: `VERIFIED`.
-- Active implementation feature: none.
+- Stage: `BLOCKED_PENDING_DOCS_MERGE`.
+- Active feature: `BE-005` (`005-subscriptions-paywall`).
+  - Owner decisions D1–D8 are explicitly approved.
+  - Canonical ADR 0009 is proposed in medcore-docs PR #3 and awaits merge to `main`.
+  - Backend implementation and spec exist in PR #13.
+  - Once ADR 0009 merges into `medcore-docs/main`, backend PR #13 becomes `READY_FOR_REVIEW`.
 - Shipped backend feature specs:
   - `001-telegram-auth-account` — merged;
   - `002-content-catalog-access` — merged;
   - `004-content-api-media` — merged;
   - `003-learning-state` — merged;
   - OpenAPI/runtime contract follow-up — merged.
-- Next roadmap item:
-  `backend-features/BE-005-subscriptions-core.md` — `READY_FOR_SPEC`, not
-  implementation-ready.
+- Pending merge: `005-subscriptions-paywall` (PR #13, awaiting medcore-docs PR #3).
 - Later roadmap items BE-006–BE-010 are explicitly BLOCKED until their listed
   owner/upstream decisions exist.
-- OMP flow: Grok designs/implements; Gemini performs one bounded design review
-  and one bounded final review after deterministic checks.
-- Human review and merge remain required.
+- Human review and merge remain required; auto-merge is forbidden.
 
 ## Current validated baseline
 
@@ -47,7 +47,7 @@ yet have an approved spec.
 
 Order:
 
-1. BE-005 — subscription core and paid entitlement — `READY_FOR_SPEC`;
+1. BE-005 — subscription core and paid entitlement — `BLOCKED_PENDING_DOCS_MERGE` (impl in PR #13, ADR 0009 in docs PR #3);
 2. BE-006 — payment provider integration — `BLOCKED`;
 3. BE-007 — dashboard/progress aggregate API — `BLOCKED`;
 4. BE-008 — profile/study preferences — `BLOCKED`;
@@ -59,26 +59,11 @@ future zones and non-goals. Do not spend model budget rediscovering them.
 
 ## BE-005 boundary
 
-The next feature is subscriptions/paywall, but only its **spec** may advance.
-
-Already accepted:
-
-- `premium` is not a role;
-- Topic access remains `demo | free | paid`;
-- paid access requires authentication + active entitlement;
-- content/media/learning ask only
-  `apps.subscriptions.policy.has_paid_content_entitlement(user)`;
-- editor/admin role alone does not bypass paid access;
-- Plan/Subscription belong to `subscriptions`;
-- multiple plans must be possible;
-- `starts_at` and `expires_at` are required concepts;
-- architecture must allow trial;
-- payment provider remains separate/TBD.
-
-Implementation remains blocked until the exact decision packet D1–D8 in
-`backend-features/BE-005-subscriptions-core.md` is accepted.
-
-Do not create subscription migrations/models/API by guessing those decisions.
+Owner decisions D1–D8 are explicitly approved and recorded in
+`medcore-docs` PR #3 (ADR 0009: `decisions/0009-subscriptions-core-and-paid-entitlement.md`).
+Backend implementation and spec in `specs/005-subscriptions-paywall/` adhere to ADR 0009
+and exist in backend PR #13.
+The feature transitions to `READY_FOR_REVIEW` as soon as docs PR #3 merges into `main`.
 
 ## Token-saving execution rule
 

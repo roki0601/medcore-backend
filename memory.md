@@ -64,4 +64,13 @@ implementation defaults.
   this flow.
 - Media is stored outside PostgreSQL and private/paid files are exposed through
   short-lived signed URLs after backend access checks.
-- Subscriptions and payment semantics remain explicitly unresolved.
+- Subscriptions core (BE-005) decisions D1–D8 are owner-approved and recorded in ADR 0009:
+  - Stored statuses: `ACTIVE` and `CANCELLED`; expiry derived dynamically from timestamps (`starts_at <= now < expires_at`).
+  - Entitlement grants access to all `paid` topics via `apps.subscriptions.policy.has_paid_content_entitlement(user)`.
+  - Multiple overlapping subscriptions allowed; `get_active_subscription()` deterministically selects latest `expires_at`, tie-breaking on newest `id`.
+  - No trial in BE-005 (architecture permits trial later without access model changes).
+  - Cancellation is cancel-at-period-end (entitlement maintained until `expires_at`).
+  - `Subscription.user` uses `CASCADE` on delete.
+  - Endpoints: public `GET /api/v1/subscriptions/plans/` and authenticated `GET /api/v1/subscriptions/current/`.
+  - Manual management via Django Admin.
+- Payment provider integration (BE-006: YooKassa/Robokassa/Stripe, webhooks, checkout/purchase flow, receipts, financial audit retention, trial eligibility) remains explicitly unresolved/TBD.

@@ -62,6 +62,12 @@ def test_error_responses_use_the_shared_envelope(schema):
         )["$ref"]
         == error_ref
     )
+    assert (
+        _response_schema(
+            _operation(schema, "/api/v1/subscriptions/current/", "get"), "401"
+        )["$ref"]
+        == error_ref
+    )
 
 
 def test_learning_attempt_schema_describes_json_payloads(schema):
@@ -107,3 +113,13 @@ def test_security_contracts_include_integration_key_and_optional_bearer(schema):
         {},
         {"bearerAuth": []},
     ]
+
+
+def test_subscriptions_schema_described(schema):
+    plan = schema["components"]["schemas"]["Plan"]
+    assert "code" in plan["required"]
+    assert "price_rub" in plan["properties"]
+
+    current_sub = schema["components"]["schemas"]["CurrentSubscriptionResponse"]
+    assert "has_access" in current_sub["required"]
+    assert "subscription" in current_sub["properties"]

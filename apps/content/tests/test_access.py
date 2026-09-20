@@ -140,3 +140,44 @@ def test_resolve_blocks_paid_denied_then_allowed_through_policy(
     decision, blocks = access.resolve_topic_blocks(topic, user)
     assert decision.full_access is True
     assert [block.position for block in blocks] == [1]
+
+
+@pytest.mark.django_db
+def test_resolve_blocks_paid_allowed_with_real_subscription(catalog, make_user):
+    from datetime import timedelta
+    from decimal import Decimal
+
+    from django.utils import timezone
+
+    from apps.subscriptions.models import Plan, Subscription
+
+    user = make_user(username="real_subscriber")
+    plan = Plan.objects.create(
+        code="sub-pass",
+        title="Pass",
+        price_rub=Decimal("990.00"),
+        duration_days=30,
+        is_active=True,
+    )
+    now = timezone.now()
+    Subscription.objects.create(
+        user=user,
+        plan=plan,
+        status=Subscription.Status.ACTIVE,
+        starts_at=now - timedelta(days=1),
+        expires_at=now + timedelta(days=29),
+    )
+
+    topic = catalog["add_topic"](
+        title="Paid Topic Real",
+        slug="paid-real",
+        position=1,
+        access_level=Topic.AccessLevel.PAID,
+    )
+    catalog["add_block"](
+        topic, block_type="markdown", position=1, body="# Paid Content"
+    )
+
+    decision, blocks = access.resolve_topic_blocks(topic, user)
+    assert decision.full_access is True
+    assert len(blocks) == 1
