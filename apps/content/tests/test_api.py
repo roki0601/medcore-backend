@@ -244,6 +244,52 @@ def test_paid_topic_requires_entitlement_and_allow_path_uses_policy_seam(
 
 
 @pytest.mark.django_db
+def test_paid_topic_allowed_with_real_subscription(
+    api_client,
+    catalog,
+    make_user,
+    authenticate,
+):
+    from datetime import timedelta
+    from decimal import Decimal
+
+    from django.utils import timezone
+
+    from apps.subscriptions.models import Plan, Subscription
+
+    user = make_user(username="paid_member")
+    authenticate(api_client, user)
+    plan = Plan.objects.create(
+        code="vip-month",
+        title="VIP Month",
+        price_rub=Decimal("990.00"),
+        duration_days=30,
+        is_active=True,
+    )
+    now = timezone.now()
+    Subscription.objects.create(
+        user=user,
+        plan=plan,
+        status=Subscription.Status.ACTIVE,
+        starts_at=now - timedelta(days=1),
+        expires_at=now + timedelta(days=29),
+    )
+
+    topic = catalog["add_topic"](
+        title="Paid Topic Real API",
+        slug="paid-api",
+        position=1,
+        access_level=Topic.AccessLevel.PAID,
+    )
+    catalog["add_block"](topic, block_type="markdown", position=1, body="# Paid API")
+
+    response = api_client.get(_content_url(topic))
+    assert response.status_code == 200
+    assert response.json()["access"]["full_access"] is True
+    assert len(response.json()["blocks"]) == 1
+
+
+@pytest.mark.django_db
 def test_image_block_exposes_reference_without_storage_key(api_client, catalog):
     topic = catalog["add_topic"](title="Demo", slug="demo", position=1)
     media = MediaFile.objects.create(

@@ -118,6 +118,7 @@ THROTTLE_RATES = {
     "learning_progress": "60/min",
     "learning_review": "60/min",
     "learning_attempt": "60/min",
+    "subscriptions_read": "60/min",
 }
 
 
@@ -239,6 +240,11 @@ SPECTACULAR_SETTINGS = {
     "DESCRIPTION": "Versioned MedCore backend API.",
     "VERSION": "0.1.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    "ENUM_NAME_OVERRIDES": {
+        "SubscriptionStatusEnum": "apps.subscriptions.models.Subscription.Status",
+        "TopicProgressStatusEnum": "apps.learning.models.UserTopicProgress.Status",
+        "QuizAttemptStatusEnum": "apps.learning.models.QuizAttempt.Status",
+    },
 }
 
 LOGGING = {

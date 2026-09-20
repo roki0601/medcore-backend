@@ -7,20 +7,16 @@ accepted product decisions, approved specs, architecture documents or
 ## Current state
 
 - Stage: `VERIFIED`.
-- Active implementation feature: none.
+- Active implementation feature: `005-subscriptions-paywall` (PR created, ready for review).
 - Shipped backend feature specs:
   - `001-telegram-auth-account` — merged;
   - `002-content-catalog-access` — merged;
   - `004-content-api-media` — merged;
   - `003-learning-state` — merged;
   - OpenAPI/runtime contract follow-up — merged.
-- Next roadmap item:
-  `backend-features/BE-005-subscriptions-core.md` — `READY_FOR_SPEC`, not
-  implementation-ready.
+- Next pending merge: `005-subscriptions-paywall` (spec in `specs/005-subscriptions-paywall/`).
 - Later roadmap items BE-006–BE-010 are explicitly BLOCKED until their listed
   owner/upstream decisions exist.
-- OMP flow: Grok designs/implements; Gemini performs one bounded design review
-  and one bounded final review after deterministic checks.
 - Human review and merge remain required.
 
 ## Current validated baseline

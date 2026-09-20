@@ -64,4 +64,10 @@ implementation defaults.
   this flow.
 - Media is stored outside PostgreSQL and private/paid files are exposed through
   short-lived signed URLs after backend access checks.
-- Subscriptions and payment semantics remain explicitly unresolved.
+- Subscriptions domain (`apps.subscriptions`) implements `Plan` and `Subscription`
+  models with `active`, `cancelled`, and `expired` statuses. `has_paid_content_entitlement(user)`
+  resolves real active subscriptions with cancel-at-period-end semantics, providing
+  entitlement for `paid` Topic content, media, and learning. Available plans
+  (`GET /api/v1/subscriptions/plans/`) and current entitlement status
+  (`GET /api/v1/subscriptions/current/`) are exposed via public/authenticated endpoints.
+  Payment provider integration (BE-006) remains a separate boundary.
