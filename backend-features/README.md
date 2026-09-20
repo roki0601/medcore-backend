@@ -24,7 +24,7 @@ For each run:
 
 | Order | Feature | Status | Main blocker/dependency |
 |---|---|---|---|
-| 1 | [BE-005 Subscription core and paid entitlement](BE-005-subscriptions-core.md) | READY_FOR_SPEC | owner choices: status/entitlement/trial/cancel/retention |
+| 1 | [BE-005 Subscription core and paid entitlement](BE-005-subscriptions-core.md) | BLOCKED_PENDING_DOCS_MERGE | D1–D8 approved; ADR 0009 pending in medcore-docs PR #3 |
 | 2 | [BE-006 Payment provider integration](BE-006-payment-provider.md) | BLOCKED | BE-005 + provider choice |
 | 3 | [BE-007 Progress/dashboard aggregate API](BE-007-progress-dashboard.md) | BLOCKED | product/API decision; current contract has no user-wide bulk progress |
 | 4 | [BE-008 Profile and study preferences](BE-008-profile-preferences.md) | BLOCKED | MVP scope/fields/privacy not accepted |
