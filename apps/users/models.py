@@ -7,7 +7,9 @@ from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.models import UserManager as DjangoUserManager
 from django.core.validators import (
     MaxLengthValidator,
+    MaxValueValidator,
     MinLengthValidator,
+    MinValueValidator,
     RegexValidator,
 )
 from django.db import models
@@ -140,3 +142,50 @@ class TelegramLoginReplay(models.Model):
 
     def __str__(self) -> str:
         return f"Telegram replay {self.pk}"
+
+
+class UserProfile(models.Model):
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="profile",
+    )
+    university = models.CharField(max_length=255, blank=True, default="")
+    course = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(6)],
+    )
+    semester_goal = models.CharField(max_length=255, blank=True, default="")
+    daily_study_minutes = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(1440)],
+    )
+    selected_subjects = models.ManyToManyField(
+        "content.Subject",
+        blank=True,
+        related_name="user_profiles",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(course__isnull=True)
+                | (models.Q(course__gte=1) & models.Q(course__lte=6)),
+                name="users_userprofile_course_range",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(daily_study_minutes__isnull=True)
+                | (
+                    models.Q(daily_study_minutes__gte=1)
+                    & models.Q(daily_study_minutes__lte=1440)
+                ),
+                name="users_userprofile_daily_study_minutes_range",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"UserProfile for user_id={self.user_id}"

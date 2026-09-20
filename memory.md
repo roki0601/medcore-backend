@@ -89,3 +89,8 @@ implementation defaults.
   - Access Control: Re-evaluates topic access policy; inaccessible paid topics and their learning metrics do not leak if entitlement expires.
   - Performance: Zero N+1 query patterns; bounded O(1) query count using set-based annotations and filtered aggregates.
   - Metrics: Summary counters (`started_topics_count`, `completed_theory_topics_count`, `flashcards_due_count`, `quizzes_attempted_count`); per-topic canonical theory status/percent, due flashcards count, quiz attempted and best score (from submitted attempts only), sorted by `last_activity_at DESC`.
+- Profile and study preferences (BE-008):
+  - Model: `apps.users.models.UserProfile` (`OneToOneField` to `User`, `CASCADE`).
+  - Fields: `university` (free text), `course` (1..6 or null), `semester_goal` (short text), `daily_study_minutes` (1..1440 or null), `selected_subjects` (M2M to `content.Subject`).
+  - Endpoints: `GET /api/v1/profile/` and `PATCH /api/v1/profile/` (`IsAuthenticated`, throttle `account_mutation` for PATCH).
+  - Semantics: Strictly private to own user; GET returns canonical empty profile or creates it safely; PATCH partially updates allowed profile fields while rejecting forbidden/auth fields (`telegram_id`, `username`, `role`); `selected_subject_ids` replaces full set; unknown IDs rejected with 400; independent of access control (does not alter topic demo/free/paid evaluation).

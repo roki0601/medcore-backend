@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
-from .models import RefreshSession, User
+from .models import RefreshSession, User, UserProfile
 
 
 @admin.register(User)
@@ -43,3 +43,20 @@ class RefreshSessionAdmin(admin.ModelAdmin):
         "created_at",
         "last_used_at",
     )
+
+
+@admin.register(UserProfile)
+class UserProfileAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "user",
+        "university",
+        "course",
+        "daily_study_minutes",
+        "created_at",
+        "updated_at",
+    )
+    search_fields = ("user__username", "university", "semester_goal")
+    raw_id_fields = ("user",)
+    filter_horizontal = ("selected_subjects",)
+    readonly_fields = ("created_at", "updated_at")

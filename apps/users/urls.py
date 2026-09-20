@@ -4,6 +4,7 @@ from .views import (
     LogoutAllView,
     LogoutView,
     MeView,
+    ProfileView,
     RefreshTokenView,
     TelegramLoginView,
 )
@@ -18,4 +19,5 @@ urlpatterns = [
     path("auth/logout/", LogoutView.as_view(), name="auth-logout"),
     path("auth/logout-all/", LogoutAllView.as_view(), name="auth-logout-all"),
     path("auth/me/", MeView.as_view(), name="auth-me"),
+    path("profile/", ProfileView.as_view(), name="user-profile"),
 ]

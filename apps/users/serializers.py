@@ -6,8 +6,9 @@ from collections.abc import Mapping
 from rest_framework import serializers
 
 from apps.common.exceptions import APIError
+from apps.content.models import Subject
 
-from .models import User
+from .models import User, UserProfile
 from .services import normalize_username
 
 
@@ -102,3 +103,105 @@ class AuthTokenResponseSerializer(serializers.Serializer):
 class RefreshTokenResponseSerializer(serializers.Serializer):
     access_token = serializers.CharField()
     expires_in = serializers.IntegerField()
+
+
+class ProfileSubjectSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Subject
+        fields = ("id", "title", "slug")
+        read_only_fields = fields
+
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    selected_subjects = ProfileSubjectSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = UserProfile
+        fields = (
+            "university",
+            "course",
+            "semester_goal",
+            "daily_study_minutes",
+            "selected_subjects",
+        )
+        read_only_fields = fields
+
+
+class UserProfileUpdateSerializer(serializers.Serializer):
+    university = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+        max_length=255,
+    )
+    course = serializers.IntegerField(
+        required=False,
+        allow_null=True,
+        min_value=1,
+        max_value=6,
+    )
+    semester_goal = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+        max_length=255,
+    )
+    daily_study_minutes = serializers.IntegerField(
+        required=False,
+        allow_null=True,
+        min_value=1,
+        max_value=1440,
+    )
+    selected_subject_ids = serializers.ListField(
+        child=serializers.IntegerField(min_value=1),
+        required=False,
+    )
+    selected_subjects = serializers.ListField(
+        child=serializers.IntegerField(min_value=1),
+        required=False,
+    )
+
+    def to_internal_value(self, data):
+        if not isinstance(data, Mapping):
+            return super().to_internal_value(data)
+        allowed_fields = {
+            "university",
+            "course",
+            "semester_goal",
+            "daily_study_minutes",
+            "selected_subjects",
+            "selected_subject_ids",
+        }
+        unknown_fields = set(data) - allowed_fields
+        if unknown_fields:
+            raise APIError(
+                "Disallowed fields in profile update.",
+                code="INVALID_REQUEST",
+                status_code=400,
+                fields={"unknown": sorted(unknown_fields)},
+            )
+        return super().to_internal_value(data)
+
+    def validate(self, attrs):
+        subject_ids = None
+        if "selected_subject_ids" in attrs:
+            subject_ids = attrs["selected_subject_ids"]
+        elif "selected_subjects" in attrs:
+            subject_ids = attrs["selected_subjects"]
+
+        if subject_ids is not None:
+            unique_ids = list(dict.fromkeys(subject_ids))
+            existing_ids = set(
+                Subject.objects.filter(id__in=unique_ids).values_list("id", flat=True)
+            )
+            missing = [sid for sid in unique_ids if sid not in existing_ids]
+            if missing:
+                raise APIError(
+                    f"Subject(s) with id {missing} do not exist.",
+                    code="INVALID_REQUEST",
+                    status_code=400,
+                    fields={"selected_subjects": [f"Unknown subject ids: {missing}"]},
+                )
+            attrs["validated_subject_ids"] = unique_ids
+
+        return attrs

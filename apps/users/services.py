@@ -20,6 +20,7 @@ from .models import (
     RefreshSession,
     TelegramLoginReplay,
     User,
+    UserProfile,
     canonicalize_username,
 )
 
@@ -397,3 +398,47 @@ def delete_account(user: User) -> None:
             revoked_at__isnull=True,
         ).update(revoked_at=now)
         locked_user.delete()
+
+
+def get_or_create_profile(user: User) -> UserProfile:
+    profile, _ = UserProfile.objects.prefetch_related(
+        "selected_subjects"
+    ).get_or_create(user=user)
+    return profile
+
+
+def update_profile(
+    user: User,
+    *,
+    university: str | None = ...,
+    course: int | None = ...,
+    semester_goal: str | None = ...,
+    daily_study_minutes: int | None = ...,
+    subject_ids: list[int] | None = None,
+) -> UserProfile:
+    with transaction.atomic():
+        profile, _ = UserProfile.objects.select_for_update().get_or_create(user=user)
+        update_fields = []
+        if university is not ...:
+            profile.university = (university or "").strip()
+            update_fields.append("university")
+        if course is not ...:
+            profile.course = course
+            update_fields.append("course")
+        if semester_goal is not ...:
+            profile.semester_goal = (semester_goal or "").strip()
+            update_fields.append("semester_goal")
+        if daily_study_minutes is not ...:
+            profile.daily_study_minutes = daily_study_minutes
+            update_fields.append("daily_study_minutes")
+
+        if update_fields:
+            update_fields.append("updated_at")
+            profile.save(update_fields=update_fields)
+
+        if subject_ids is not None:
+            profile.selected_subjects.set(subject_ids)
+
+        return UserProfile.objects.prefetch_related("selected_subjects").get(
+            pk=profile.pk
+        )
