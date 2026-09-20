@@ -11,6 +11,7 @@ import pytest
 from drf_spectacular.generators import SchemaGenerator
 
 LEARNING_SCHEMA_PATHS = {
+    "/api/v1/dashboard/": {"get"},
     "/api/v1/topics/{topic_id}/progress/": {"get", "patch"},
     "/api/v1/topics/{topic_id}/blocks/{block_id}/complete/": {"post"},
     "/api/v1/topics/{topic_id}/flashcards/": {"get"},
@@ -38,6 +39,7 @@ EXPECTED_COMPONENTS = (
     "QuizAttempt",
     "TopicQuiz",
     "TopicQuizDetail",
+    "DashboardResponse",
 )
 
 _REF_PREFIX = "#/components/schemas/"
@@ -114,7 +116,7 @@ def test_openapi_contains_every_learning_path_and_method():
     schema = SchemaGenerator().get_schema(request=None, public=True)
     paths = schema["paths"]
 
-    assert len(LEARNING_SCHEMA_PATHS) == 11
+    assert len(LEARNING_SCHEMA_PATHS) == 12
     for path, methods in LEARNING_SCHEMA_PATHS.items():
         assert path in paths, f"{path} is missing from the schema"
         assert methods <= set(paths[path]), f"{path} lacks {methods - set(paths[path])}"

@@ -15,11 +15,18 @@ class TopicAccessDecision:
     is_demo_preview: bool
 
 
-def evaluate_topic_access(topic: Topic, user) -> TopicAccessDecision:
+def evaluate_topic_access(
+    topic: Topic,
+    user,
+    *,
+    entitled: bool | None = None,
+) -> TopicAccessDecision:
     """Compose the ADR 0007 access matrix for one published Topic.
 
     ``content`` owns this composition and reads entitlement only through the
     public subscriptions policy boundary; it never inspects Subscription state.
+    When ``entitled`` is explicitly provided, it avoids redundant subscription
+    lookups when evaluating multiple topics in batch.
     """
 
     authenticated = bool(user is not None and user.is_authenticated)
@@ -30,10 +37,11 @@ def evaluate_topic_access(topic: Topic, user) -> TopicAccessDecision:
         return TopicAccessDecision(level=level, full_access=False, is_demo_preview=True)
     if level == Topic.AccessLevel.FREE:
         return TopicAccessDecision(level=level, full_access=True, is_demo_preview=False)
-    entitled = has_paid_content_entitlement(user)
+    if entitled is None:
+        entitled = has_paid_content_entitlement(user)
     return TopicAccessDecision(
         level=level,
-        full_access=entitled,
+        full_access=bool(entitled),
         is_demo_preview=False,
     )
 

@@ -1,6 +1,6 @@
 # BE-007 — Progress/dashboard aggregate API
 
-Status: BLOCKED
+Status: READY_FOR_REVIEW
 
 ## Why this exists
 

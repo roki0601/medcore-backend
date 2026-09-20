@@ -28,6 +28,13 @@ def test_error_responses_use_the_shared_envelope(schema):
 
     assert (
         _response_schema(
+            _operation(schema, "/api/v1/dashboard/", "get"),
+            "401",
+        )["$ref"]
+        == error_ref
+    )
+    assert (
+        _response_schema(
             _operation(schema, "/api/v1/topics/{topic_id}/progress/", "get"),
             "401",
         )["$ref"]

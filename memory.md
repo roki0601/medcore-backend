@@ -83,4 +83,9 @@ implementation defaults.
     - `POST /api/v1/subscriptions/payments/` (`IsAuthenticated`, initiates payment, returns `payment_id`, `payment_url`);
     - `POST` / `GET` `/api/v1/subscriptions/payments/robokassa/result/` (`AllowAny`, validates signature, activates subscription, returns plaintext `OK{InvId}`);
     - `GET` / `POST` `/api/v1/subscriptions/payments/robokassa/success/` and `fail/` (buyer landing redirects/status).
-
+- Progress and dashboard aggregate API (BE-007):
+  - Endpoint: `GET /api/v1/dashboard/` (`IsAuthenticated`, throttle scope `learning_read`, unpaginated).
+  - Scope: Only returns topics where user has active learning activity (theory progress, flashcard reviews, or quiz attempts).
+  - Access Control: Re-evaluates topic access policy; inaccessible paid topics and their learning metrics do not leak if entitlement expires.
+  - Performance: Zero N+1 query patterns; bounded O(1) query count using set-based annotations and filtered aggregates.
+  - Metrics: Summary counters (`started_topics_count`, `completed_theory_topics_count`, `flashcards_due_count`, `quizzes_attempted_count`); per-topic canonical theory status/percent, due flashcards count, quiz attempted and best score (from submitted attempts only), sorted by `last_activity_at DESC`.
