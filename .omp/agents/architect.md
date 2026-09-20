@@ -1,6 +1,6 @@
 ---
 name: architect
-description: Read-only DeepSeek architecture and high-risk decision reviewer
+description: Optional read-only Grok architecture reviewer
 tools: [read, grep, glob, lsp, ast_grep, yield]
 spawns: []
 model: ["@architect"]

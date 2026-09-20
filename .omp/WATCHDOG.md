@@ -1,44 +1,50 @@
-# MedCore project watchdog
+# MedCore backend escalation watchdog
 
-This file is advisor-only guidance. It does not replace `AGENTS.md`, accepted
-decisions, architecture documents, or feature specifications. The delegated
-review and decision protocol is defined in `.omp/AUTONOMOUS_REVIEW.md`.
+This is emergency review guidance only. Normal design review and final review
+are handled by the bounded Gemini roles described in
+`.omp/AUTONOMOUS_REVIEW.md`.
 
-## Review priorities
+## Escalation priorities
 
-- Apply source-of-truth precedence: sibling `medcore-docs` accepted decisions,
-  backend architecture, approved feature spec, then existing code/tests.
-- Treat every `TBD` as unresolved. Do not let an agent silently choose product,
-  auth, permission, paywall, data-model, infrastructure, or API semantics.
-- Keep `content` as content owner and `learning` as learning-state owner.
-  Subscription and entitlement policy must stay behind the subscriptions boundary.
-- Reject Django signals for core business logic and new Celery, Kafka, RabbitMQ,
-  Elasticsearch, Kubernetes, microservice, or provider dependencies without an
-  accepted decision.
-- Reject public API, auth/token, permission, migration, or cross-domain changes
-  that are outside the approved spec.
-- Require behavior-focused tests for the applicable happy path, distinct
-  invariants, permissions, validation/errors, regressions, and relevant
-  boundary/concurrency behavior. Reject line-coverage tests,
-  transparent-wrapper duplicates, and one-test-per-trivial-field patterns. A
-  failed check cannot be reported as `DONE`.
-- Watch for migration rewrites, weakened tests, leaked secrets, raw sensitive
-  payloads in logs, and changes to unrelated user work.
+Apply source precedence:
 
-## Orchestration policy
+1. accepted sibling `medcore-docs` decisions;
+2. approved backend spec;
+3. backend architecture and `AGENTS.md`;
+4. selected `backend-features` brief;
+5. current code/tests.
 
-- Require a dependency-aware zone plan. Launch up to four DeepSeek workers in
-  parallel only for disjoint writable zones; keep shared foundations,
-  migrations, contracts, fixtures, and overlapping files sequential.
-- Use DeepSeek for planning, decomposition, coordination, and ordinary review.
-- Keep Luna detached from ordinary turns. Invoke the read-only Luna watchdog
-  only for the objective escalation triggers in `.omp/AUTONOMOUS_REVIEW.md`.
-- Use the project state machine in `PROJECT_STATE.md`; do not skip readiness or
-  mark a feature complete without written decision records when an escalation
-  occurred and final validation.
-- Preserve existing untracked user changes, especially the current feature plan.
+Treat every unresolved `TBD` as unresolved.
 
-## Required validation
+Escalation should focus only on the concrete incident:
 
-Before a feature is considered verified, run the project commands from
-`AGENTS.md`, including Ruff, pytest, Django checks, and the migration check.
+- source conflict;
+- security/auth/permission risk;
+- destructive migration/data-loss risk;
+- transaction/concurrency failure;
+- repeated deterministic failure after two concrete fixes.
+
+Reject new infrastructure or provider dependencies without an accepted feature
+contract. Keep content, learning and subscriptions ownership boundaries intact.
+
+## Orchestration
+
+- Grok owns ordinary design and implementation.
+- Gemini owns the two normal bounded review gates.
+- Claude watchdog is detached and invoked only on an objective escalation.
+- Do not create review chains or quorum loops.
+- One compact escalation packet, one verdict.
+
+## Required final validation
+
+Normal completion still requires:
+
+```text
+uv run ruff format --check .
+uv run ruff check .
+uv run python manage.py check
+uv run python manage.py makemigrations --check --dry-run
+uv run pytest --create-db
+```
+
+A failed/skipped check cannot be reported as VERIFIED.
