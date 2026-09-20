@@ -119,6 +119,8 @@ THROTTLE_RATES = {
     "learning_review": "60/min",
     "learning_attempt": "60/min",
     "subscriptions_read": "60/min",
+    "subscriptions_payment": "30/min",
+    "subscriptions_result": "120/min",
 }
 
 
@@ -242,10 +244,20 @@ SPECTACULAR_SETTINGS = {
     "SERVE_INCLUDE_SCHEMA": False,
     "ENUM_NAME_OVERRIDES": {
         "SubscriptionStatusEnum": "apps.subscriptions.models.Subscription.Status",
+        "PaymentStatusEnum": "apps.subscriptions.models.Payment.Status",
         "TopicProgressStatusEnum": "apps.learning.models.UserTopicProgress.Status",
         "QuizAttemptStatusEnum": "apps.learning.models.QuizAttempt.Status",
     },
 }
+
+ROBOKASSA_MERCHANT_LOGIN = os.environ.get("ROBOKASSA_MERCHANT_LOGIN", "")
+ROBOKASSA_PASSWORD_1 = os.environ.get("ROBOKASSA_PASSWORD_1", "")
+ROBOKASSA_PASSWORD_2 = os.environ.get("ROBOKASSA_PASSWORD_2", "")
+ROBOKASSA_HASH_ALGORITHM = os.environ.get("ROBOKASSA_HASH_ALGORITHM", "sha256")
+ROBOKASSA_TEST_MODE = env_bool("ROBOKASSA_TEST_MODE", True)
+ROBOKASSA_BASE_URL = os.environ.get(
+    "ROBOKASSA_BASE_URL", "https://auth.robokassa.ru/Merchant/Index.aspx"
+)
 
 LOGGING = {
     "version": 1,

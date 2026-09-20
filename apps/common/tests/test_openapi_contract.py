@@ -68,6 +68,18 @@ def test_error_responses_use_the_shared_envelope(schema):
         )["$ref"]
         == error_ref
     )
+    assert (
+        _response_schema(
+            _operation(schema, "/api/v1/subscriptions/payments/", "post"), "401"
+        )["$ref"]
+        == error_ref
+    )
+    assert (
+        _response_schema(
+            _operation(schema, "/api/v1/subscriptions/payments/", "post"), "400"
+        )["$ref"]
+        == error_ref
+    )
 
 
 def test_learning_attempt_schema_describes_json_payloads(schema):

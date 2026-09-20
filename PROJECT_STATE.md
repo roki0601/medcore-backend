@@ -6,27 +6,28 @@ accepted product decisions, approved specs, architecture documents or
 
 ## Current state
 
-- Stage: `BLOCKED_PENDING_DOCS_MERGE`.
-- Active feature: `BE-005` (`005-subscriptions-paywall`).
-  - Owner decisions D1–D8 are explicitly approved.
-  - Canonical ADR 0009 is proposed in medcore-docs PR #3 and awaits merge to `main`.
-  - Backend implementation and spec exist in PR #13.
-  - Once ADR 0009 merges into `medcore-docs/main`, backend PR #13 becomes `READY_FOR_REVIEW`.
+- Stage: `READY_FOR_REVIEW`.
+- Active feature: `BE-006` (`006-robokassa-payment`).
+  - Provider: Robokassa.
+  - Manual one-time Plan purchase (no recurring/autopay, no stored cards, no Celery).
+  - Fiscalization: Робочеки СМЗ (handled by Robokassa; backend does not integrate directly with FNS).
+  - Implementation, tests, OpenAPI, and spec completed in `feature/006-robokassa-payment`.
 - Shipped backend feature specs:
   - `001-telegram-auth-account` — merged;
   - `002-content-catalog-access` — merged;
   - `004-content-api-media` — merged;
   - `003-learning-state` — merged;
+  - `005-subscriptions-paywall` — merged;
   - OpenAPI/runtime contract follow-up — merged.
-- Pending merge: `005-subscriptions-paywall` (PR #13, awaiting medcore-docs PR #3).
-- Later roadmap items BE-006–BE-010 are explicitly BLOCKED until their listed
+- Pending review: `006-robokassa-payment`.
+- Later roadmap items BE-007–BE-010 are explicitly BLOCKED until their listed
   owner/upstream decisions exist.
 - Human review and merge remain required; auto-merge is forbidden.
 
 ## Current validated baseline
 
-Backend 003 learning state and the OpenAPI follow-up are already merged. The
-baseline includes:
+Backend 003 learning state, 005 subscriptions paywall core, and OpenAPI follow-up
+are already merged. The baseline includes:
 
 - Telegram-only auth/session contract;
 - catalog + Topic `demo/free/paid` access model;
@@ -35,6 +36,7 @@ baseline includes:
 - topic/theory progress;
 - flashcard review API;
 - resumable quiz attempts and scoring;
+- subscriptions core (`Plan`, `Subscription`, `has_paid_content_entitlement(user)`);
 - OpenAPI coverage for shipped routes.
 
 Do not reopen these contracts merely because the next feature touches the same
@@ -47,8 +49,8 @@ yet have an approved spec.
 
 Order:
 
-1. BE-005 — subscription core and paid entitlement — `BLOCKED_PENDING_DOCS_MERGE` (impl in PR #13, ADR 0009 in docs PR #3);
-2. BE-006 — payment provider integration — `BLOCKED`;
+1. BE-005 — subscription core and paid entitlement — `MERGED`;
+2. BE-006 — payment provider integration — `READY_FOR_REVIEW`;
 3. BE-007 — dashboard/progress aggregate API — `BLOCKED`;
 4. BE-008 — profile/study preferences — `BLOCKED`;
 5. BE-009 — content bulk/import extensions — `BLOCKED`;
@@ -57,13 +59,13 @@ Order:
 The briefs already list fixed constraints, exact unresolved decisions, expected
 future zones and non-goals. Do not spend model budget rediscovering them.
 
-## BE-005 boundary
+## BE-006 boundary
 
-Owner decisions D1–D8 are explicitly approved and recorded in
-`medcore-docs` PR #3 (ADR 0009: `decisions/0009-subscriptions-core-and-paid-entitlement.md`).
-Backend implementation and spec in `specs/005-subscriptions-paywall/` adhere to ADR 0009
-and exist in backend PR #13.
-The feature transitions to `READY_FOR_REVIEW` as soon as docs PR #3 merges into `main`.
+Robokassa one-time manual purchases of `Plan` without recurring auto-debit.
+Receipts handled by Robokassa (Робочеки СМЗ). Endpoints:
+`POST /api/v1/subscriptions/payments/`, `POST/GET /api/v1/subscriptions/payments/robokassa/result/`,
+UX landing `success/` and `fail/`. Idempotent ResultURL handler with `select_for_update()`.
+
 
 ## Token-saving execution rule
 

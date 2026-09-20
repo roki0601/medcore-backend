@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from django.contrib import admin
 
-from .models import Plan, Subscription
+from .models import Payment, Plan, Subscription
 
 
 @admin.register(Plan)
@@ -35,3 +35,22 @@ class SubscriptionAdmin(admin.ModelAdmin):
     search_fields = ("user__username", "user__email", "plan__title", "plan__code")
     raw_id_fields = ("user",)
     date_hierarchy = "expires_at"
+
+
+@admin.register(Payment)
+class PaymentAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "user",
+        "plan",
+        "amount",
+        "status",
+        "provider",
+        "created_at",
+        "paid_at",
+    )
+    list_filter = ("status", "provider", "created_at", "paid_at")
+    search_fields = ("id", "user__username", "user__email", "plan__code")
+    raw_id_fields = ("user", "plan", "subscription")
+    readonly_fields = ("created_at", "updated_at", "paid_at")
+    date_hierarchy = "created_at"

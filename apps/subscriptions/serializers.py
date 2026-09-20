@@ -46,3 +46,31 @@ class CurrentSubscriptionSerializer(serializers.ModelSerializer):
 class CurrentSubscriptionResponseSerializer(serializers.Serializer):
     has_access = serializers.BooleanField()
     subscription = CurrentSubscriptionSerializer(allow_null=True)
+
+
+class CreatePaymentRequestSerializer(serializers.Serializer):
+    plan_id = serializers.IntegerField(
+        min_value=1,
+        help_text="ID активного плана подписки для покупки.",
+    )
+
+
+class CreatePaymentResponseSerializer(serializers.Serializer):
+    payment_id = serializers.IntegerField(help_text="ID созданного платежа (InvId).")
+    payment_url = serializers.CharField(
+        help_text="URL для перенаправления покупателя на оплату в Robokassa."
+    )
+
+    amount = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        help_text="Сумма к оплате в рублях.",
+    )
+    status = serializers.CharField(help_text="Текущий статус платежа (pending).")
+
+
+class PaymentStatusResponseSerializer(serializers.Serializer):
+    status = serializers.CharField(help_text="Статус операции (success / failed).")
+    message = serializers.CharField(
+        help_text="Пользовательское сообщение о результате."
+    )
