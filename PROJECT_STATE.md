@@ -6,15 +6,15 @@ repository's `AGENTS.md`.
 
 ## Current state
 
-- Stage: `VERIFIED` (feature 003 merged; OpenAPI contract follow-up validated)
+- Stage: `VERIFIED` (feature 003 and the OpenAPI contract follow-up are merged)
 - Active feature: `subscriptions/paywall` (`READY_FOR_SPEC`)
 - Risk: `MEDIUM` (public schema/client compatibility; subscription contract TBD)
 - Spec status: feature 003 approved via the delegated review;
   `subscriptions/paywall` spec is not yet created and remains `READY_FOR_SPEC`
 - Plan status: feature 003 implemented as written; subscriptions plan not started
 - Tasks status: feature 003 T001-T014 complete; subscriptions tasks not started
-- Implementation status: feature 003 merged into `main` at `0ee924b`; OpenAPI
-  follow-up is implemented on `codex/fix-openapi-contract`
+- Implementation status: feature 003 is merged (PR #9); the OpenAPI contract
+  follow-up is also merged (PR #10). No subscriptions implementation has started
 - Validation status: feature 003 passed its recorded 361-test/live-smoke/CI
   validation; the current OpenAPI follow-up adds contract coverage and the
   project-wide suite is 365 tests green, with Ruff/Django/migration checks clean
@@ -83,13 +83,12 @@ rounds, write `BLOCKED` with evidence and the exact unresolved conflict.
 
 ## Next action
 
-Feature 003 is merged into `main` at `0ee924b` (PR
-https://github.com/roki0601/medcore-backend/pull/9). The OpenAPI contract
-follow-up is validated on `codex/fix-openapi-contract`; its changes are ready
-for the orchestrator's atomic commit. The next feature boundary is
-subscriptions/paywall, but it is `READY_FOR_SPEC`, not `READY_FOR_IMPLEMENTATION`:
-the owner must first resolve the subscription contract and approve an
-implementation-ready spec.
+Feature 003 is merged as PR #9 and the OpenAPI contract follow-up is merged as
+PR #10. The next backend feature boundary is subscriptions/paywall, but it
+remains `READY_FOR_SPEC`, not `READY_FOR_IMPLEMENTATION`: define the subscription
+status/entitlement/trial/account-deletion contract, resolve the remaining owner
+choices, approve an implementation-ready spec, and only then create the feature
+plan/tasks and implementation branch.
 
 The two feature-003 owner decisions remain open: the pass threshold (register
 item 65) that gates score-based automatic topic completion, and whether a
