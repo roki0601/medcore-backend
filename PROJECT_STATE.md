@@ -6,30 +6,28 @@ repository's `AGENTS.md`.
 
 ## Current state
 
-- Stage: `VERIFIED` (implementation + validation + live smoke); PR open, human
-  review/merge pending
-- Active feature: `003-learning-state`
-- Risk: `HIGH` (permission/ownership boundary, migrations, concurrency, scoring)
-- Spec status: approved via the delegated review
-  (`.omp/decisions/2026-09-19-003-learning-state-review.md`), amended to the
-  accepted contract, then corrected by the pre-implementation consistency analysis
-  recorded in the same file
-- Plan status: implemented as written (`specs/003-learning-state/tasks.md` T001-T014)
-- Tasks status: T001-T014 complete
-- Implementation status: complete on `feature/003-learning-state` (commit `1e5bf5d`)
-- Validation status: passed — ruff format/lint clean, 361 tests green (117 learning),
-  `manage.py check` clean, `makemigrations --check` clean, live smoke 64/64,
-  CI GitHub Actions run `35455508683` `success`
+- Stage: `VERIFIED` (feature 003 merged; OpenAPI contract follow-up validated)
+- Active feature: `subscriptions/paywall` (`READY_FOR_SPEC`)
+- Risk: `MEDIUM` (public schema/client compatibility; subscription contract TBD)
+- Spec status: feature 003 approved via the delegated review;
+  `subscriptions/paywall` spec is not yet created and remains `READY_FOR_SPEC`
+- Plan status: feature 003 implemented as written; subscriptions plan not started
+- Tasks status: feature 003 T001-T014 complete; subscriptions tasks not started
+- Implementation status: feature 003 merged into `main` at `0ee924b`; OpenAPI
+  follow-up is implemented on `codex/fix-openapi-contract`
+- Validation status: feature 003 passed its recorded 361-test/live-smoke/CI
+  validation; the current OpenAPI follow-up adds contract coverage and the
+  project-wide suite is 365 tests green, with Ruff/Django/migration checks clean
 - Completion status: `VERIFIED`
 - Decision record: `.omp/decisions/2026-09-19-003-learning-state-review.md`
-- Completion report: `.omp/reports/2026-09-19-003-learning-state-completion.md`
+- Completion report: `.omp/reports/2026-09-20-005-openapi-contract-completion.md`
 
 ## Feature order
 
 1. `001-telegram-auth-account` (merged)
 2. `002-content-catalog-access` (merged)
 3. `004-content-api-media` (merged)
-4. `003-learning-state` (in progress)
+4. `003-learning-state` (merged)
 
 Subscription/entitlement behavior is a separate feature boundary that 002/004
 depend on: `paid` Topics and `paid` media are unreadable until that feature ships
@@ -43,6 +41,13 @@ feature branch: `medcore-docs` `0b1d51c`, `medcore-backend` `f30b1e4` (12 commit
 ahead of the stale local `main`, including the merged PR 6/7/8).
 `medcore-frontend` was not inspected (outside backend OMP scope). Branch
 `feature/003-learning-state` was created from `f30b1e4`.
+
+## Preflight record (2026-09-20, OpenAPI contract follow-up)
+
+After PR #9 was confirmed merged, `medcore-docs` and `medcore-backend` were
+checked clean and fast-forwarded in that order. The resulting base commits were
+`medcore-docs` `0b1d51c` and `medcore-backend` `0ee924b`. The frontend repository
+was not inspected or changed because it remains outside backend OMP scope.
 
 ## Autonomous transition gate
 
@@ -78,13 +83,19 @@ rounds, write `BLOCKED` with evidence and the exact unresolved conflict.
 
 ## Next action
 
-Feature 003 is implemented and validated on `feature/003-learning-state`
-(commit `1e5bf5d`); PR https://github.com/roki0601/medcore-backend/pull/9 is open.
-Review it, then merge manually; merge from the OMP run is not allowed. Two owner
-decisions are pending: the pass threshold (register item 65) that also gates the
-score-based automatic topic completion, and whether a submitted attempt may keep
-revealing `correct_answer_ids` while retakes stay unlimited. After the merge the
-next feature boundary is subscriptions/paywall (the entitlement source).
+Feature 003 is merged into `main` at `0ee924b` (PR
+https://github.com/roki0601/medcore-backend/pull/9). The OpenAPI contract
+follow-up is validated on `codex/fix-openapi-contract`; its changes are ready
+for the orchestrator's atomic commit. The next feature boundary is
+subscriptions/paywall, but it is `READY_FOR_SPEC`, not `READY_FOR_IMPLEMENTATION`:
+the owner must first resolve the subscription contract and approve an
+implementation-ready spec.
+
+The two feature-003 owner decisions remain open: the pass threshold (register
+item 65) that gates score-based automatic topic completion, and whether a
+submitted attempt may keep revealing `correct_answer_ids` while retakes stay
+unlimited. They do not block the subscriptions spec, but must not be closed
+silently.
 
 Carry-forward contracts for later features:
 

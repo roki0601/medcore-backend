@@ -13,6 +13,7 @@ from rest_framework.response import Response
 from apps.common.exceptions import APIError
 from apps.common.integration import HasIntegrationKey, IntegrationKeyAuthentication
 from apps.common.permissions import IsContentAuthor
+from apps.common.serializers import APIErrorResponseSerializer
 from apps.content.access import resolve_topic_blocks
 from apps.content.models import (
     ContentBlock,
@@ -70,11 +71,24 @@ from apps.content.services import (
 from apps.users.authentication import VersionedJWTAuthentication
 
 ERROR_RESPONSES = {
-    401: OpenApiResponse(description="Authentication required."),
-    403: OpenApiResponse(description="Entitlement required."),
-    404: OpenApiResponse(description="Resource not found."),
-    422: OpenApiResponse(description="Invalid parent relation."),
-    429: OpenApiResponse(description="Too many requests."),
+    400: OpenApiResponse(
+        response=APIErrorResponseSerializer, description="Invalid request."
+    ),
+    401: OpenApiResponse(
+        response=APIErrorResponseSerializer, description="Authentication required."
+    ),
+    403: OpenApiResponse(
+        response=APIErrorResponseSerializer, description="Entitlement required."
+    ),
+    404: OpenApiResponse(
+        response=APIErrorResponseSerializer, description="Resource not found."
+    ),
+    422: OpenApiResponse(
+        response=APIErrorResponseSerializer, description="Invalid parent relation."
+    ),
+    429: OpenApiResponse(
+        response=APIErrorResponseSerializer, description="Too many requests."
+    ),
 }
 
 SECTION_FILTER = OpenApiParameter(
@@ -269,16 +283,30 @@ AUTHORING_PERMISSION = "Permission: integration key or editor/admin JWT."
 #: its own mapping: a 403 here is a role failure, not an entitlement failure,
 #: and a 409 is only reachable on a write.
 AUTHORING_ERROR_RESPONSES = {
+    400: OpenApiResponse(
+        response=APIErrorResponseSerializer, description="Invalid request."
+    ),
     401: OpenApiResponse(
-        description="Integration key invalid, or authentication missing."
+        response=APIErrorResponseSerializer,
+        description="Integration key invalid, or authentication missing.",
     ),
     403: OpenApiResponse(
-        description="The authenticated user is not an editor or an admin."
+        response=APIErrorResponseSerializer,
+        description="The authenticated user is not an editor or an admin.",
     ),
-    404: OpenApiResponse(description="Resource not found."),
-    409: OpenApiResponse(description="Content, external_id or publish-state conflict."),
-    422: OpenApiResponse(description="Invalid payload or relation."),
-    429: OpenApiResponse(description="Too many requests."),
+    404: OpenApiResponse(
+        response=APIErrorResponseSerializer, description="Resource not found."
+    ),
+    409: OpenApiResponse(
+        response=APIErrorResponseSerializer,
+        description="Content, external_id or publish-state conflict.",
+    ),
+    422: OpenApiResponse(
+        response=APIErrorResponseSerializer, description="Invalid payload or relation."
+    ),
+    429: OpenApiResponse(
+        response=APIErrorResponseSerializer, description="Too many requests."
+    ),
 }
 
 CONTENT_PK_PARAMETER = OpenApiParameter(

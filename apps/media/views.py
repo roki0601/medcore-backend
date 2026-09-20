@@ -16,6 +16,7 @@ from rest_framework.response import Response
 from apps.common.exceptions import APIError
 from apps.common.integration import HasIntegrationKey, IntegrationKeyAuthentication
 from apps.common.permissions import IsContentAuthor, IsNotIntegrationClient
+from apps.common.serializers import APIErrorResponseSerializer
 from apps.media.models import MediaFile
 from apps.media.serializers import (
     AccessUrlSerializer,
@@ -57,49 +58,83 @@ MEDIA_CONTROLLED_PERMISSIONS = (AllowAny,)
 MEDIA_AUTHORING_PERMISSION = "Permission: integration key or editor/admin JWT."
 
 MEDIA_AUTHORING_ERROR_RESPONSES = {
+    400: OpenApiResponse(
+        response=APIErrorResponseSerializer, description="Invalid request."
+    ),
     401: OpenApiResponse(
-        description="Integration key invalid, or authentication missing."
+        response=APIErrorResponseSerializer,
+        description="Integration key invalid, or authentication missing.",
     ),
     403: OpenApiResponse(
-        description="The authenticated user is not an editor or an admin."
+        response=APIErrorResponseSerializer,
+        description="The authenticated user is not an editor or an admin.",
     ),
-    404: OpenApiResponse(description="Resource not found."),
-    409: OpenApiResponse(description="Media is referenced by published content."),
-    422: OpenApiResponse(description="Invalid payload, MIME type or size."),
-    429: OpenApiResponse(description="Too many requests."),
+    404: OpenApiResponse(
+        response=APIErrorResponseSerializer, description="Resource not found."
+    ),
+    409: OpenApiResponse(
+        response=APIErrorResponseSerializer,
+        description="Media is referenced by published content.",
+    ),
+    422: OpenApiResponse(
+        response=APIErrorResponseSerializer,
+        description="Invalid payload, MIME type or size.",
+    ),
+    429: OpenApiResponse(
+        response=APIErrorResponseSerializer, description="Too many requests."
+    ),
 }
 
 #: The upload contract of one media row refuses a row whose object already
 #: exists, so its 409 means "already uploaded" instead of "still referenced".
 MEDIA_UPLOAD_URL_ERROR_RESPONSES = {
     **MEDIA_AUTHORING_ERROR_RESPONSES,
-    409: OpenApiResponse(description="The media object is already uploaded."),
+    409: OpenApiResponse(
+        response=APIErrorResponseSerializer,
+        description="The media object is already uploaded.",
+    ),
 }
 
 MEDIA_ACCESS_ERROR_RESPONSES = {
     401: OpenApiResponse(
-        description="Authentication required, or the capability token is invalid."
+        response=APIErrorResponseSerializer,
+        description="Authentication required, or the capability token is invalid.",
     ),
     403: OpenApiResponse(
-        description="Media access denied, or the integration key is out of scope."
+        response=APIErrorResponseSerializer,
+        description="Media access denied, or the integration key is out of scope.",
     ),
-    404: OpenApiResponse(description="Resource not found."),
-    422: OpenApiResponse(description="The stored object is missing or mismatched."),
-    429: OpenApiResponse(description="Too many requests."),
+    404: OpenApiResponse(
+        response=APIErrorResponseSerializer, description="Resource not found."
+    ),
+    422: OpenApiResponse(
+        response=APIErrorResponseSerializer,
+        description="The stored object is missing or mismatched.",
+    ),
+    429: OpenApiResponse(
+        response=APIErrorResponseSerializer, description="Too many requests."
+    ),
 }
 
 MEDIA_CONTROLLED_ERROR_RESPONSES = {
-    401: OpenApiResponse(description="The capability token is invalid or expired."),
+    401: OpenApiResponse(
+        response=APIErrorResponseSerializer,
+        description="The capability token is invalid or expired.",
+    ),
     404: OpenApiResponse(
-        description="Resource not found, or the backend has no controlled contract."
+        response=APIErrorResponseSerializer,
+        description="Resource not found, or the backend has no controlled contract.",
     ),
     422: OpenApiResponse(
+        response=APIErrorResponseSerializer,
         description=(
             "The uploaded body exceeds the configured limit, or the uploaded "
             "bytes do not match the metadata."
-        )
+        ),
     ),
-    429: OpenApiResponse(description="Too many requests."),
+    429: OpenApiResponse(
+        response=APIErrorResponseSerializer, description="Too many requests."
+    ),
 }
 
 MEDIA_PK_PARAMETER = OpenApiParameter(
@@ -239,8 +274,8 @@ class MediaUploadUrlView(generics.GenericAPIView):
 @extend_schema(
     request=None,
     parameters=[MEDIA_PK_PARAMETER],
-    auth=[],
     responses={200: AccessUrlSerializer, **MEDIA_ACCESS_ERROR_RESPONSES},
+    auth=[{}, {"bearerAuth": []}],
     description=(
         "Issue a short-lived read URL for one media row. Public media is signed "
         "for every actor; protected media requires the content-owned access "

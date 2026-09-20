@@ -15,6 +15,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.common.exceptions import APIError
+from apps.common.serializers import APIErrorResponseSerializer
 
 from .serializers import (
     AuthTokenResponseSerializer,
@@ -41,12 +42,24 @@ from .throttles import (
 )
 
 ERROR_RESPONSES = {
-    400: OpenApiResponse(description="Invalid request."),
-    401: OpenApiResponse(description="Authentication failed."),
-    403: OpenApiResponse(description="CSRF or permission failure."),
-    409: OpenApiResponse(description="Username conflict."),
-    422: OpenApiResponse(description="Validation failure."),
-    429: OpenApiResponse(description="Too many requests."),
+    400: OpenApiResponse(
+        response=APIErrorResponseSerializer, description="Invalid request."
+    ),
+    401: OpenApiResponse(
+        response=APIErrorResponseSerializer, description="Authentication failed."
+    ),
+    403: OpenApiResponse(
+        response=APIErrorResponseSerializer, description="CSRF or permission failure."
+    ),
+    409: OpenApiResponse(
+        response=APIErrorResponseSerializer, description="Username conflict."
+    ),
+    422: OpenApiResponse(
+        response=APIErrorResponseSerializer, description="Validation failure."
+    ),
+    429: OpenApiResponse(
+        response=APIErrorResponseSerializer, description="Too many requests."
+    ),
 }
 
 CSRF_HEADER_PARAMETER = OpenApiParameter(

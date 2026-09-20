@@ -96,7 +96,7 @@ class DeleteAccountSerializer(serializers.Serializer):
 class AuthTokenResponseSerializer(serializers.Serializer):
     access_token = serializers.CharField()
     expires_in = serializers.IntegerField()
-    user = UserSummarySerializer(required=False)
+    user = UserSummarySerializer()
 
 
 class RefreshTokenResponseSerializer(serializers.Serializer):

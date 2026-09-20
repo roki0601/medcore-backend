@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.common.exceptions import APIError
@@ -109,7 +110,7 @@ class ContentBlockTypeSerializer(serializers.ModelSerializer):
 class ContentBlockSerializer(serializers.ModelSerializer):
     block_type = ContentBlockTypeSerializer(read_only=True)
     markdown_body = serializers.SerializerMethodField()
-    media = serializers.SerializerMethodField()
+    media = serializers.SerializerMethodField(allow_null=True)
     sources = SourceSerializer(many=True, read_only=True)
 
     class Meta:
@@ -133,6 +134,7 @@ class ContentBlockSerializer(serializers.ModelSerializer):
             return obj.markdown_body
         return None
 
+    @extend_schema_field(MediaReferenceSerializer(allow_null=True))
     def get_media(self, obj: ContentBlock) -> dict | None:
         if obj.block_type.key != IMAGE_BLOCK_KEY or obj.media is None:
             return None
