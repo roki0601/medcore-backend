@@ -15,7 +15,6 @@ class PlanSerializer(serializers.ModelSerializer):
             "description",
             "price_rub",
             "duration_days",
-            "is_trial",
         )
 
 
@@ -41,7 +40,6 @@ class CurrentSubscriptionSerializer(serializers.ModelSerializer):
             "status",
             "starts_at",
             "expires_at",
-            "is_trial",
         )
 
 

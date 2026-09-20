@@ -6,15 +6,15 @@ accepted product decisions, approved specs, architecture documents or
 
 ## Current state
 
-- Stage: `BLOCKED_FOR_OWNER_DECISION`.
-- Active feature: `BE-005` (`005-subscriptions-paywall`) — prototype proposed in PR #13, but implementation is NOT approved and NOT ready for merge until owner resolves decisions D1–D8.
+- Stage: `READY_FOR_REVIEW`.
+- Active implementation feature: `005-subscriptions-paywall` (PR #13, accepted by ADR 0009).
 - Shipped backend feature specs:
   - `001-telegram-auth-account` — merged;
   - `002-content-catalog-access` — merged;
   - `004-content-api-media` — merged;
   - `003-learning-state` — merged;
   - OpenAPI/runtime contract follow-up — merged.
-- Next roadmap item: `backend-features/BE-005-subscriptions-core.md` — owner decision packet D1–D8 presented in `specs/005-subscriptions-paywall/spec.md`.
+- Pending merge: `005-subscriptions-paywall` (spec in `specs/005-subscriptions-paywall/`, ADR 0009 in `medcore-docs`).
 - Later roadmap items BE-006–BE-010 are explicitly BLOCKED until their listed
   owner/upstream decisions exist.
 - Human review and merge remain required; auto-merge is forbidden.
@@ -71,10 +71,9 @@ Already accepted:
 - architecture must allow trial;
 - payment provider remains separate/TBD.
 
-Implementation remains blocked until the exact decision packet D1–D8 in
-`backend-features/BE-005-subscriptions-core.md` is accepted.
-
-Do not create subscription migrations/models/API by guessing those decisions.
+Decision packet D1–D8 is formally accepted in
+`medcore-docs/decisions/0009-subscriptions-core-and-paid-entitlement.md` (ADR 0009).
+Implementation and spec in `specs/005-subscriptions-paywall/` adhere to ADR 0009.
 
 ## Token-saving execution rule
 

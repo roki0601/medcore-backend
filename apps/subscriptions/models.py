@@ -7,7 +7,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.db import models
 
-SUBSCRIPTION_STATUS_VALUES = ("active", "cancelled", "expired")
+SUBSCRIPTION_STATUS_VALUES = ("active", "cancelled")
 
 
 class Plan(models.Model):
@@ -24,7 +24,6 @@ class Plan(models.Model):
         validators=[MinValueValidator(1)],
     )
     is_active = models.BooleanField(default=True, db_index=True)
-    is_trial = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -49,7 +48,6 @@ class Subscription(models.Model):
     class Status(models.TextChoices):
         ACTIVE = "active", "Active"
         CANCELLED = "cancelled", "Cancelled"
-        EXPIRED = "expired", "Expired"
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -69,7 +67,6 @@ class Subscription(models.Model):
     )
     starts_at = models.DateTimeField(db_index=True)
     expires_at = models.DateTimeField(db_index=True)
-    is_trial = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

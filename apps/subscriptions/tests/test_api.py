@@ -72,7 +72,6 @@ def test_plans_list_is_public_and_excludes_inactive(
     assert first["title"] == "Месячная подписка"
     assert first["price_rub"] == "990.00"
     assert first["duration_days"] == 30
-    assert first["is_trial"] is False
 
 
 @pytest.mark.django_db
@@ -115,7 +114,6 @@ def test_current_subscription_user_with_active_subscription(api_client, monthly_
     assert data["subscription"]["id"] == sub.id
     assert data["subscription"]["status"] == "active"
     assert data["subscription"]["plan"]["code"] == "monthly"
-    assert data["subscription"]["is_trial"] is False
 
 
 @pytest.mark.django_db
@@ -148,7 +146,7 @@ def test_current_subscription_expired_has_no_access(api_client, monthly_plan):
     Subscription.objects.create(
         user=user,
         plan=monthly_plan,
-        status=Subscription.Status.EXPIRED,
+        status=Subscription.Status.ACTIVE,
         starts_at=now - timedelta(days=60),
         expires_at=now - timedelta(days=30),
     )
@@ -159,3 +157,36 @@ def test_current_subscription_expired_has_no_access(api_client, monthly_plan):
     data = response.json()
     assert data["has_access"] is False
     assert data["subscription"] is None
+
+
+@pytest.mark.django_db
+def test_current_subscription_multiple_overlapping_selects_latest(
+    api_client, monthly_plan, yearly_plan
+):
+    user = User.objects.create_user(username="multi_sub_api")
+    now = timezone.now()
+
+    # Subscription 1: expires in 10 days
+    Subscription.objects.create(
+        user=user,
+        plan=monthly_plan,
+        status=Subscription.Status.ACTIVE,
+        starts_at=now - timedelta(days=5),
+        expires_at=now + timedelta(days=10),
+    )
+    # Subscription 2: expires in 360 days (latest)
+    sub_yearly = Subscription.objects.create(
+        user=user,
+        plan=yearly_plan,
+        status=Subscription.Status.ACTIVE,
+        starts_at=now - timedelta(days=1),
+        expires_at=now + timedelta(days=360),
+    )
+
+    api_client.force_authenticate(user=user)
+    response = api_client.get("/api/v1/subscriptions/current/")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["has_access"] is True
+    assert data["subscription"]["id"] == sub_yearly.id
+    assert data["subscription"]["plan"]["code"] == "yearly"

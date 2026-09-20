@@ -10,6 +10,7 @@ from django.utils import timezone
 
 from apps.subscriptions import policy
 from apps.subscriptions.models import Plan, Subscription
+from apps.subscriptions.selectors import get_active_subscription
 
 User = get_user_model()
 
@@ -78,7 +79,7 @@ def test_future_subscription_does_not_grant_entitlement_yet(plan):
 
 
 @pytest.mark.django_db
-def test_expired_subscription_denies_entitlement(plan):
+def test_expired_subscription_by_time_denies_entitlement(plan):
     user = User.objects.create_user(username="past_subscriber")
     now = timezone.now()
     Subscription.objects.create(
@@ -89,9 +90,6 @@ def test_expired_subscription_denies_entitlement(plan):
         expires_at=now - timedelta(days=1),
     )
 
-    assert policy.has_paid_content_entitlement(user) is False
-
-    Subscription.objects.filter(user=user).update(status=Subscription.Status.EXPIRED)
     assert policy.has_paid_content_entitlement(user) is False
 
 
@@ -138,6 +136,92 @@ def test_inactive_user_with_active_subscription_denied(plan):
     )
 
     assert policy.has_paid_content_entitlement(user) is False
+
+
+@pytest.mark.django_db
+def test_multiple_overlapping_subscriptions_grant_entitlement_and_select_latest(
+    plan,
+):
+    user = User.objects.create_user(username="multi_sub")
+    now = timezone.now()
+
+    # Sub 1: Active, expires in 10 days
+    Subscription.objects.create(
+        user=user,
+        plan=plan,
+        status=Subscription.Status.ACTIVE,
+        starts_at=now - timedelta(days=5),
+        expires_at=now + timedelta(days=10),
+    )
+    # Sub 2: Cancelled, expires in 25 days
+    Subscription.objects.create(
+        user=user,
+        plan=plan,
+        status=Subscription.Status.CANCELLED,
+        starts_at=now - timedelta(days=2),
+        expires_at=now + timedelta(days=25),
+    )
+    # Sub 3: Active, expires in 40 days (the latest)
+    sub3 = Subscription.objects.create(
+        user=user,
+        plan=plan,
+        status=Subscription.Status.ACTIVE,
+        starts_at=now - timedelta(days=1),
+        expires_at=now + timedelta(days=40),
+    )
+
+    # Entitlement is True
+    assert policy.has_paid_content_entitlement(user) is True
+
+    # get_active_subscription selects sub3 (latest expires_at)
+    active = get_active_subscription(user)
+    assert active is not None
+    assert active.pk == sub3.pk
+
+    # After 15 days: sub1 expired, sub2 and sub3 still active -> select sub3
+    at_15d = now + timedelta(days=15)
+    assert (
+        get_active_subscription(user, at_time=at_15d).pk  # type: ignore[union-attr]
+        == sub3.pk
+    )
+
+    # After 30 days: sub1 and sub2 expired, sub3 still active
+    at_30d = now + timedelta(days=30)
+    assert (
+        get_active_subscription(user, at_time=at_30d).pk  # type: ignore[union-attr]
+        == sub3.pk
+    )
+
+    # After 45 days: all expired
+    at_45d = now + timedelta(days=45)
+    assert get_active_subscription(user, at_time=at_45d) is None
+
+
+@pytest.mark.django_db
+def test_overlapping_subscriptions_with_same_expiry_selects_newest_id(plan):
+    user = User.objects.create_user(username="same_exp_user")
+    now = timezone.now()
+    exp = now + timedelta(days=30)
+
+    sub_older = Subscription.objects.create(
+        user=user,
+        plan=plan,
+        status=Subscription.Status.ACTIVE,
+        starts_at=now - timedelta(days=2),
+        expires_at=exp,
+    )
+    sub_newer = Subscription.objects.create(
+        user=user,
+        plan=plan,
+        status=Subscription.Status.ACTIVE,
+        starts_at=now - timedelta(days=1),
+        expires_at=exp,
+    )
+
+    active = get_active_subscription(user)
+    assert active is not None
+    assert sub_newer.pk > sub_older.pk
+    assert active.pk == sub_newer.pk
 
 
 @pytest.mark.django_db

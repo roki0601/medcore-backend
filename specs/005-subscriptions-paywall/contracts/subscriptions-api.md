@@ -1,6 +1,7 @@
 # Subscriptions API Contract
 
 Base URL: `/api/v1/subscriptions/`
+Source of truth: `medcore-docs/decisions/0009-subscriptions-core-and-paid-entitlement.md` (ADR 0009)
 
 All endpoints follow the standard MedCore REST conventions and error envelope.
 
@@ -22,8 +23,7 @@ All endpoints follow the standard MedCore REST conventions and error envelope.
     "title": "Месячная подписка",
     "description": "Полный доступ ко всем платным темам и материалам на 30 дней",
     "price_rub": "990.00",
-    "duration_days": 30,
-    "is_trial": false
+    "duration_days": 30
   },
   {
     "id": 2,
@@ -31,8 +31,7 @@ All endpoints follow the standard MedCore REST conventions and error envelope.
     "title": "Годовая подписка",
     "description": "Полный доступ ко всем платным темам и материалам на 365 дней со скидкой",
     "price_rub": "7990.00",
-    "duration_days": 365,
-    "is_trial": false
+    "duration_days": 365
   }
 ]
 ```
@@ -43,7 +42,7 @@ All endpoints follow the standard MedCore REST conventions and error envelope.
 
 - **Endpoint**: `GET /api/v1/subscriptions/current/`
 - **Auth**: Authenticated user (`IsAuthenticated`)
-- **Description**: Returns the caller's active entitlement status and their most recent/active subscription.
+- **Description**: Returns caller's active entitlement status and their active subscription (with latest `expires_at`, breaking ties by newest `id`).
 
 ### Response 200 OK (With Active Subscription)
 
@@ -60,8 +59,7 @@ All endpoints follow the standard MedCore REST conventions and error envelope.
     },
     "status": "active",
     "starts_at": "2026-09-01T00:00:00Z",
-    "expires_at": "2026-10-01T00:00:00Z",
-    "is_trial": false
+    "expires_at": "2026-10-01T00:00:00Z"
   }
 }
 ```
