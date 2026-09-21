@@ -26,10 +26,33 @@ TEXT_BLOCK_KEYS = ("markdown", "callout")
 IMAGE_BLOCK_KEY = "image"
 
 
+class MediaReferenceSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    mime_type = serializers.CharField()
+    original_name = serializers.CharField()
+    visibility = serializers.CharField()
+
+
 class SubjectSerializer(serializers.ModelSerializer):
+    cover = serializers.SerializerMethodField(allow_null=True)
+
     class Meta:
         model = Subject
-        fields = ("id", "title", "description", "slug", "position", "external_id")
+        fields = (
+            "id",
+            "title",
+            "description",
+            "slug",
+            "position",
+            "external_id",
+            "cover",
+        )
+
+    @extend_schema_field(MediaReferenceSerializer(allow_null=True))
+    def get_cover(self, obj: Subject) -> dict | None:
+        if obj.cover_id is None:
+            return None
+        return MediaReferenceSerializer(obj.cover).data
 
 
 class SectionSerializer(serializers.ModelSerializer):
@@ -52,6 +75,7 @@ class TopicSerializer(serializers.ModelSerializer):
     section = serializers.IntegerField(source="section_id", read_only=True)
     subject = serializers.IntegerField(source="section.subject_id", read_only=True)
     has_demo_preview = serializers.SerializerMethodField()
+    cover = serializers.SerializerMethodField(allow_null=True)
 
     class Meta:
         model = Topic
@@ -67,6 +91,7 @@ class TopicSerializer(serializers.ModelSerializer):
             "access_level",
             "has_demo_preview",
             "external_id",
+            "cover",
         )
 
     def get_has_demo_preview(self, obj: Topic) -> bool:
@@ -77,6 +102,12 @@ class TopicSerializer(serializers.ModelSerializer):
             status=ContentBlock.Status.PUBLISHED,
             is_demo_preview=True,
         ).exists()
+
+    @extend_schema_field(MediaReferenceSerializer(allow_null=True))
+    def get_cover(self, obj: Topic) -> dict | None:
+        if obj.cover_id is None:
+            return None
+        return MediaReferenceSerializer(obj.cover).data
 
 
 class SourceSerializer(serializers.ModelSerializer):
@@ -92,13 +123,6 @@ class SourceSerializer(serializers.ModelSerializer):
             "note",
             "external_id",
         )
-
-
-class MediaReferenceSerializer(serializers.Serializer):
-    id = serializers.IntegerField()
-    mime_type = serializers.CharField()
-    original_name = serializers.CharField()
-    visibility = serializers.CharField()
 
 
 class ContentBlockTypeSerializer(serializers.ModelSerializer):
@@ -281,13 +305,18 @@ def _validate_relation_ids(model, values, field: str):
 
 
 class SubjectWriteSerializer(StrictWriteSerializer):
+    cover = serializers.IntegerField(write_only=True, required=False, allow_null=True)
+
     class Meta:
         model = Subject
-        fields = ("title", "description", "position", "external_id")
+        fields = ("title", "description", "position", "external_id", "cover")
         extra_kwargs = {
             "description": {"required": False},
             "position": {"required": False},
         }
+
+    def validate_cover(self, value: int | None):
+        return _resolve_relation(MediaFile, value, "cover")
 
 
 class SectionWriteSerializer(StrictWriteSerializer):
@@ -307,6 +336,7 @@ class SectionWriteSerializer(StrictWriteSerializer):
 
 class TopicWriteSerializer(StrictWriteSerializer):
     section = serializers.IntegerField(write_only=True)
+    cover = serializers.IntegerField(write_only=True, required=False, allow_null=True)
 
     class Meta:
         model = Topic
@@ -318,6 +348,7 @@ class TopicWriteSerializer(StrictWriteSerializer):
             "status",
             "access_level",
             "external_id",
+            "cover",
         )
         extra_kwargs = {
             "description": {"required": False},
@@ -326,6 +357,9 @@ class TopicWriteSerializer(StrictWriteSerializer):
 
     def validate_section(self, value: int) -> Section:
         return _resolve_relation(Section, value, "section")
+
+    def validate_cover(self, value: int | None):
+        return _resolve_relation(MediaFile, value, "cover")
 
 
 class ContentBlockWriteSerializer(StrictWriteSerializer):

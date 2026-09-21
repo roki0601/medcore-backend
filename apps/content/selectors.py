@@ -7,11 +7,11 @@ from apps.content.models import ContentBlock, Section, Source, Subject, Topic
 
 
 def list_subjects() -> QuerySet[Subject]:
-    return Subject.objects.all()
+    return Subject.objects.select_related("cover")
 
 
 def get_subject(subject_id: int) -> Subject | None:
-    return Subject.objects.filter(pk=subject_id).first()
+    return Subject.objects.select_related("cover").filter(pk=subject_id).first()
 
 
 def get_section(section_id: int) -> Section | None:
@@ -29,7 +29,7 @@ def _published_demo_preview_exists():
 def published_topics() -> QuerySet[Topic]:
     return (
         Topic.objects.filter(status=Topic.Status.PUBLISHED)
-        .select_related("section", "section__subject")
+        .select_related("section", "section__subject", "cover")
         .annotate(has_demo_preview=Exists(_published_demo_preview_exists()))
     )
 

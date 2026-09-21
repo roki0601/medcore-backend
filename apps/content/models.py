@@ -40,6 +40,13 @@ class Subject(TimeStampedModel):
     slug = models.SlugField(max_length=255, unique=True)
     position = models.PositiveIntegerField()
     external_id = models.CharField(max_length=255, null=True, blank=True, unique=True)
+    cover = models.ForeignKey(
+        "media.MediaFile",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="subject_covers",
+    )
 
     class Meta:
         ordering = ("position", "id")
@@ -103,6 +110,13 @@ class Topic(TimeStampedModel):
         default=AccessLevel.DEMO,
     )
     external_id = models.CharField(max_length=255, null=True, blank=True, unique=True)
+    cover = models.ForeignKey(
+        "media.MediaFile",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="topic_covers",
+    )
 
     class Meta:
         ordering = ("position", "id")

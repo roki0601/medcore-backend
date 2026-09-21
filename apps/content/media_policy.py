@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from apps.common.exceptions import APIError
 from apps.content.access import evaluate_topic_access
-from apps.content.models import ContentBlock, Topic
+from apps.content.models import ContentBlock, Subject, Topic
 from apps.media.models import MediaFile
 from apps.subscriptions.policy import has_paid_content_entitlement
 
@@ -37,7 +37,7 @@ def decide_media_access(media: MediaFile, actor) -> MediaAccessDecision:
     while an authenticated actor is simply denied.
     """
 
-    blocks = (
+    blocks = list(
         ContentBlock.objects.filter(
             media=media,
             status=ContentBlock.Status.PUBLISHED,
@@ -46,6 +46,21 @@ def decide_media_access(media: MediaFile, actor) -> MediaAccessDecision:
         .select_related("topic")
         .order_by("id")
     )
+    if not blocks:
+        if (
+            Subject.objects.filter(cover=media).exists()
+            or Topic.objects.filter(
+                cover=media,
+                status=Topic.Status.PUBLISHED,
+            ).exists()
+        ):
+            return MediaAccessDecision(allowed=True, requires_authentication=False)
+        authenticated = bool(actor is not None and actor.is_authenticated)
+        return MediaAccessDecision(
+            allowed=False,
+            requires_authentication=not authenticated,
+        )
+
     entitled: bool | None = None
     for block in blocks:
         if block.topic.access_level == Topic.AccessLevel.PAID and entitled is None:
@@ -82,6 +97,8 @@ def guard_media_deletion(media: MediaFile) -> None:
         ContentBlock.objects.select_for_update()
         .filter(media=media, status=ContentBlock.Status.PUBLISHED)
         .exists()
+        or Subject.objects.select_for_update().filter(cover=media).exists()
+        or Topic.objects.select_for_update().filter(cover=media).exists()
     )
     if published_reference:
         raise APIError(
