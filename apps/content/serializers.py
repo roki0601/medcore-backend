@@ -54,6 +54,7 @@ class SubjectSerializer(serializers.ModelSerializer):
             return None
         return MediaReferenceSerializer(obj.cover).data
 
+
 class SectionSerializer(serializers.ModelSerializer):
     subject = serializers.IntegerField(source="subject_id", read_only=True)
 
@@ -109,8 +110,6 @@ class TopicSerializer(serializers.ModelSerializer):
         return MediaReferenceSerializer(obj.cover).data
 
 
-
-
 class SourceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Source
@@ -124,7 +123,6 @@ class SourceSerializer(serializers.ModelSerializer):
             "note",
             "external_id",
         )
-
 
 
 class ContentBlockTypeSerializer(serializers.ModelSerializer):
@@ -279,6 +277,7 @@ def _resolve_relation(model, value: int | None, field: str):
             fields={field: ["Unknown relation id."]},
         )
     return row
+
 
 def _validate_relation_ids(model, values, field: str):
     """Validate one Source relation list and keep it as numeric ids.

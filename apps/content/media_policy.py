@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from apps.common.exceptions import APIError
 from apps.content.access import evaluate_topic_access
 from apps.content.models import ContentBlock, Subject, Topic
 from apps.media.models import MediaFile
@@ -36,10 +37,13 @@ def decide_media_access(media: MediaFile, actor) -> MediaAccessDecision:
     while an authenticated actor is simply denied.
     """
 
-    if Subject.objects.filter(cover=media).exists() or Topic.objects.filter(
-        cover=media,
-        status=Topic.Status.PUBLISHED,
-    ).exists():
+    if (
+        Subject.objects.filter(cover=media).exists()
+        or Topic.objects.filter(
+            cover=media,
+            status=Topic.Status.PUBLISHED,
+        ).exists()
+    ):
         return MediaAccessDecision(allowed=True, requires_authentication=False)
 
     blocks = (
