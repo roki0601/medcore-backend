@@ -2,9 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from apps.common.exceptions import APIError
 from apps.content.access import evaluate_topic_access
-from apps.content.models import ContentBlock, Topic
+from apps.content.models import ContentBlock, Subject, Topic
 from apps.media.models import MediaFile
 from apps.subscriptions.policy import has_paid_content_entitlement
 
@@ -36,6 +35,12 @@ def decide_media_access(media: MediaFile, actor) -> MediaAccessDecision:
     an unauthenticated actor is asked to authenticate (``requires_authentication``)
     while an authenticated actor is simply denied.
     """
+
+    if Subject.objects.filter(cover=media).exists() or Topic.objects.filter(
+        cover=media,
+        status=Topic.Status.PUBLISHED,
+    ).exists():
+        return MediaAccessDecision(allowed=True, requires_authentication=False)
 
     blocks = (
         ContentBlock.objects.filter(
@@ -82,6 +87,8 @@ def guard_media_deletion(media: MediaFile) -> None:
         ContentBlock.objects.select_for_update()
         .filter(media=media, status=ContentBlock.Status.PUBLISHED)
         .exists()
+        or Subject.objects.select_for_update().filter(cover=media).exists()
+        or Topic.objects.select_for_update().filter(cover=media).exists()
     )
     if published_reference:
         raise APIError(

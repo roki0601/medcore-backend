@@ -87,6 +87,8 @@ class SubjectAdmin(ContentPermissionMixin, admin.ModelAdmin):
         services.save_subject(
             title=form.cleaned_data["title"],
             description=form.cleaned_data.get("description") or "",
+            cover=form.cleaned_data.get("cover"),
+            cover_provided=True,
             instance=obj,
         )
 
@@ -128,6 +130,8 @@ class TopicAdmin(ContentPermissionMixin, admin.ModelAdmin):
             description=form.cleaned_data.get("description") or "",
             status=form.cleaned_data["status"],
             access_level=form.cleaned_data["access_level"],
+            cover=form.cleaned_data.get("cover"),
+            cover_provided=True,
             instance=obj,
         )
 

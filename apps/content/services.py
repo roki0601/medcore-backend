@@ -289,12 +289,16 @@ def save_subject(
     title: str,
     description: str = "",
     position: int | None = None,
+    cover=None,
+    cover_provided: bool = False,
     instance: Subject | None = None,
 ) -> Subject:
     subject = instance or Subject()
     with transaction.atomic():
         subject.title = title
         subject.description = description
+        if cover_provided:
+            subject.cover = cover
         _assign_position(
             Subject,
             subject,
@@ -337,6 +341,8 @@ def save_topic(
     position: int | None = None,
     status: str = Topic.Status.DRAFT,
     access_level: str = Topic.AccessLevel.DEMO,
+    cover=None,
+    cover_provided: bool = False,
     instance: Topic | None = None,
 ) -> Topic:
     topic = instance or Topic()
@@ -347,6 +353,8 @@ def save_topic(
         topic.description = description
         topic.status = status
         topic.access_level = access_level
+        if cover_provided:
+            topic.cover = cover
         _assign_position(
             Topic,
             topic,
@@ -868,6 +876,8 @@ def upsert_subject(
     title: str,
     description: str = "",
     position: int | None = None,
+    cover=None,
+    cover_provided: bool = False,
     external_id: str | None = None,
     external_id_provided: bool = False,
     instance: Subject | None = None,
@@ -886,6 +896,8 @@ def upsert_subject(
             title=title,
             description=description,
             position=position,
+            cover=cover,
+            cover_provided=cover_provided,
             instance=target,
         )
         return subject, created
@@ -929,6 +941,8 @@ def upsert_topic(
     position: int | None = None,
     status: str = Topic.Status.DRAFT,
     access_level: str = Topic.AccessLevel.DEMO,
+    cover=None,
+    cover_provided: bool = False,
     external_id: str | None = None,
     external_id_provided: bool = False,
     instance: Topic | None = None,
@@ -950,6 +964,8 @@ def upsert_topic(
             position=position,
             status=status,
             access_level=access_level,
+            cover=cover,
+            cover_provided=cover_provided,
             instance=target,
         )
         return topic, created

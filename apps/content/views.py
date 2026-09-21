@@ -447,6 +447,7 @@ class ContentSubjectListView(ContentListCreateView):
     def save_new(self, data, request):
         return upsert_subject(
             **data,
+            cover_provided="cover" in data,
             external_id_provided="external_id" in request.data,
         )
 
@@ -490,6 +491,8 @@ class ContentSubjectDetailView(ContentDetailView):
             title=data.get("title", instance.title),
             description=data.get("description", instance.description),
             position=data.get("position"),
+            cover=data["cover"] if "cover" in data else instance.cover,
+            cover_provided="cover" in data,
             external_id=data.get("external_id", instance.external_id),
             external_id_provided="external_id" in request.data,
             instance=instance,
@@ -626,6 +629,7 @@ class ContentTopicListView(ContentListCreateView):
         return upsert_topic(
             section,
             **payload,
+            cover_provided="cover" in payload,
             external_id_provided="external_id" in request.data,
         )
 
@@ -674,6 +678,8 @@ class ContentTopicDetailView(ContentDetailView):
             position=data.get("position"),
             status=data.get("status", instance.status),
             access_level=data.get("access_level", instance.access_level),
+            cover=data["cover"] if "cover" in data else instance.cover,
+            cover_provided="cover" in data,
             external_id=data.get("external_id", instance.external_id),
             external_id_provided="external_id" in request.data,
             instance=instance,
