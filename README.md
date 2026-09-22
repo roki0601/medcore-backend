@@ -30,9 +30,13 @@ make pre-commit
 
 ## Server containers
 
-The Compose stack is intended for server-like runs and includes web, PostgreSQL
-16 and Redis 7. Provide production values in `.env`, then run migrations
-explicitly before starting the web service:
+`compose.yaml` remains the existing local/server-like stack used by
+`make compose-up`, `make compose-migrate` and `make compose-down`. It is not
+the production VPS topology.
+
+Production on the VPS uses `compose.prod.yaml` from `/root/dev/medcore`. Caddy stays
+on the host. PostgreSQL and Redis publish no host ports. See
+`docs/operations/production-readiness.md`.
 
 ```bash
 make compose-migrate
@@ -40,5 +44,5 @@ make compose-up
 make compose-logs
 ```
 
-Stop the stack with `make compose-down`. The web container runs Gunicorn; a
-reverse proxy is intentionally outside this repository.
+Stop the local stack with `make compose-down`. Do not use that Makefile target
+for the production project.

@@ -137,3 +137,129 @@ No health endpoint makes external provider calls.
 6. Verify profile, learning state, dashboard, and protected media access.
 7. Confirm logs contain no JWTs, refresh cookies, Telegram/Robokassa/S3
    secrets, request payloads, or capability URLs.
+
+## PrepMed VPS
+
+Production root is `/root/dev/medcore`. `PREPMED_ROOT` overrides it. Caddy stays
+a host systemd service; this repository does not change the Caddyfile. The
+live site already proxies `/api/*`, `/admin/*` and `/static/*` to
+`127.0.0.1:8000` and everything else to `127.0.0.1:3000`.
+
+```text
+/root/dev/medcore/
+  medcore-backend/
+  medcore-frontend/
+  .env.backend          # mode 600, not in git
+  .env.frontend         # mode 600, not in git
+  deploy.sh             # symlink to medcore-backend/scripts/prod/deploy.sh
+  backups/              # same-VPS dumps; not disaster recovery
+  .prepmed-postgres-ready
+```
+
+Do not publish 3000, 8000, 5432 or 6379. The public listeners stay 22, 80 and
+443.
+
+### Current runtime, audited 2026-09-22
+
+These are the processes the first deploy replaces. Do not delete their data.
+
+| Runtime | Identity | Port | Data |
+| --- | --- | --- | --- |
+| Postgres | compose project `medcore-backend`, container `medcore-backend-postgres-1`, file `medcore-backend/compose.yaml` | `127.0.0.1:5432` | volume `medcore-backend_postgres_data` at `/var/lib/postgresql/data`. Database `medcore`, 29 applied migrations, about 10 MB. |
+| Redis | container `medcore-backend-redis-1` | `127.0.0.1:6379` | volume `medcore-backend_redis_data` at `/data`. AOF off, `DBSIZE` 0, `dump.rdb` is an empty snapshot. |
+| Frontend | `docker run` container `medcore-frontend`, not a compose service | `127.0.0.1:3000` | bind `/root/dev/medcore/medcore-frontend:/app`. No database volume. |
+| Backend | host gunicorn, cwd `/root/dev/medcore/medcore-backend`, not a systemd unit | `127.0.0.1:8000` | no database of its own. |
+
+The new project name is `prepmed`. Its volumes are `prepmed_postgres_data` and
+`prepmed_redis_data`. They are not the legacy volumes. Starting the new
+postgres without a copy would create an empty database while the real data
+stays in `medcore-backend_postgres_data`. `deploy.sh` refuses that.
+
+### First cutover
+
+`./deploy.sh` does this itself. It does not delete legacy volumes or stop the
+legacy postgres/redis containers.
+
+1. Build the production images. A failed build leaves the current site running.
+2. If `prepmed_postgres_data` has no `PG_VERSION` and
+   `medcore-backend_postgres_data` exists, `pg_dump -Fc` the running legacy
+   postgres into `/root/dev/medcore/backups/cutover-*.dump`, start the new
+   postgres on the new volume, `pg_restore`, and compare the
+   `django_migrations` fingerprint. The legacy container keeps serving
+   `127.0.0.1:5432` during the copy.
+3. Copy `dump.rdb` into `prepmed_redis_data` when it exists. Redis currently
+   has no keys; the legacy volume is still kept.
+4. Run `migrate` and `check` against the new database. The old gunicorn and
+   frontend are still up, so a failed migration does not take the site down.
+5. Stop only container `medcore-frontend` (`docker stop`, not `docker rm`) and
+   the host gunicorn whose cwd is the backend checkout. If 3000 or 8000 is
+   held by anything else, the script stops. It does not start the new
+   frontend or backend on an occupied port.
+6. Start the new backend and frontend on `127.0.0.1:8000` and
+   `127.0.0.1:3000`, then check localhost and `https://prepmed.ru`.
+
+A successful cutover writes `/root/dev/medcore/.prepmed-postgres-ready`. Later
+deploys see that marker and do not dump again. If the new volume already has
+Postgres data and the marker is missing, deploy aborts instead of guessing.
+
+Keep `DATABASE_NAME=medcore`. The legacy database name is `medcore`.
+
+After the new stack is healthy and an offsite copy of the cutover dump exists,
+the old containers can be stopped by hand. Do not run `docker volume rm` on
+`medcore-backend_postgres_data` or `medcore-backend_redis_data` until that
+copy exists. `deploy.sh` never removes those volumes.
+
+Rollback before trusting the new stack: `docker stop` the new backend and
+frontend, `docker start medcore-frontend`, and start the old host gunicorn
+again. The legacy postgres container is still on `127.0.0.1:5432`.
+
+### Setup on this VPS
+
+The clones are already at `/root/dev/medcore`. Do not move them.
+
+```bash
+cd /root/dev/medcore
+ln -sfn medcore-backend/scripts/prod/deploy.sh deploy.sh
+install -m 600 /dev/null .env.backend
+install -m 600 /dev/null .env.frontend
+```
+
+Fill the env files, then run `./deploy.sh` by hand. Add GitHub Actions secrets
+only after that succeeds. The workflow is inert until it is on `main`. Its
+SSH command is `cd /root/dev/medcore && ./deploy.sh`.
+
+GitHub secrets, SSH only: `PROD_HOST`, `PROD_USER`, `PROD_SSH_KEY`, optional
+`PROD_PORT` and `PROD_KNOWN_HOSTS`. Do not store application secrets in GitHub.
+
+### Backup
+
+`scripts/prod/backup-db.sh` writes a timestamped `pg_dump -Fc` under
+`/root/dev/medcore/backups` and exits non-zero on failure. A copy on this VPS
+is not disaster recovery. Copy it off the server.
+
+### Reboot
+
+New compose services use `restart: unless-stopped`. The legacy postgres,
+redis and frontend containers have restart policy `no`, and the host gunicorn
+is not a systemd unit. After the cutover, a reboot should bring back only
+Docker, the new containers and Caddy.
+
+- [ ] `systemctl is-enabled docker caddy` is `enabled`.
+- [ ] After reboot, the `prepmed` project shows backend, frontend, postgres and redis up.
+- [ ] Legacy volume `medcore-backend_postgres_data` still exists.
+- [ ] `curl --fail --header 'Host: prepmed.ru' http://127.0.0.1:8000/api/v1/health/ready/`
+- [ ] `curl --fail http://127.0.0.1:3000/`
+- [ ] `curl --fail https://prepmed.ru/`
+- [ ] `curl --fail https://prepmed.ru/api/v1/health/ready/`
+- [ ] 3000 and 8000 are bound to `127.0.0.1` only. 5432 and 6379 are not required on the host.
+
+### Rollback
+
+Do not run `docker compose down -v` or `docker system prune -a`.
+
+If the new migration has not run, the legacy database is unchanged. Stop the
+new backend/frontend and start the old frontend container and host gunicorn.
+If the new migration has run, do not expect a code checkout to undo it.
+Restore from the cutover dump or an offsite dump only when the schema must
+move backward, and take a fresh dump first. Run `pg_restore` through
+`docker compose exec -T postgres`.
