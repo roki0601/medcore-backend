@@ -149,6 +149,12 @@ export PREPMED_REVISION="$(
   git -C "$BACKEND_DIR" rev-parse --short=12 HEAD
 )-$(git -C "$FRONTEND_DIR" rev-parse --short=12 HEAD)"
 
+MEDIA_VOLUME="${PREPMED_MEDIA_VOLUME:-prepmed_media_data}"
+media_existed=0
+if docker volume inspect "$MEDIA_VOLUME" >/dev/null 2>&1; then
+  media_existed=1
+fi
+
 prepmed_compose build
 "$SCRIPT_DIR/cutover-legacy-data.sh"
 
@@ -213,3 +219,7 @@ wait_curl "public site" https://prepmed.ru/
 wait_curl "public ready" https://prepmed.ru/api/v1/health/ready/
 
 prepmed_compose ps
+if [[ "$media_existed" == 1 ]] && ! docker volume inspect "$MEDIA_VOLUME" >/dev/null 2>&1; then
+  echo "media volume $MEDIA_VOLUME disappeared during deploy" >&2
+  exit 1
+fi

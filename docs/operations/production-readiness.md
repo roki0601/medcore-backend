@@ -21,8 +21,7 @@ missing or unsafe:
   `ROBOKASSA_PASSWORD_2`, `ROBOKASSA_HASH_ALGORITHM`, and explicit
   `ROBOKASSA_TEST_MODE=true|false`. Test mode also requires
   `ROBOKASSA_TEST_PASSWORD_1` and `ROBOKASSA_TEST_PASSWORD_2`.
-- `MEDIA_STORAGE_BACKEND=s3`, `MEDIA_S3_BUCKET`, `MEDIA_S3_ACCESS_KEY`, and
-  `MEDIA_S3_SECRET_KEY`.
+- `MEDIA_STORAGE_BACKEND=local` and `MEDIA_STORAGE_ROOT=/app/media-storage` on the current VPS. S3 credentials are required only when `MEDIA_STORAGE_BACKEND=s3`.
 
 Do not put real secrets in `.env.example`, images, or repository history.
 
@@ -71,13 +70,23 @@ Readiness does not call Telegram, Robokassa, or object storage.
 
 ## Media storage
 
-Production must use private S3-compatible object storage. The Django system
-checks reject local storage, unknown backends, and incomplete bucket/credential
-configuration. Access and upload capability URLs are short-lived credentials.
-Configure the reverse proxy and application/access logs so paths containing
+The current VPS uses `MEDIA_STORAGE_BACKEND=local` with
+`MEDIA_STORAGE_ROOT=/app/media-storage`, mounted from the named volume
+`prepmed_media_data`. Files must not live only in the container filesystem.
+`deploy.sh` does not delete or recreate that volume. S3 support remains in the
+application; select it by setting `MEDIA_STORAGE_BACKEND=s3` and the
+`MEDIA_S3_*` credentials. Local storage is single-node: `manage.py check`
+emits `media.W001` and still exits successfully.
+
+Back up the media volume separately from PostgreSQL. A database dump does not
+contain these files. `scripts/prod/backup-media.sh` writes a timestamped
+archive of `/app/media-storage`. Copy that archive off the VPS; a copy on this
+machine is not disaster recovery.
+
+Access and upload capability URLs are short-lived credentials. Configure the
+reverse proxy and application logs so paths containing
 `/api/v1/media/file/<token>/` and `/api/v1/media/upload/<token>/` are excluded
-or redacted; capability tokens must not appear in logs, metrics, or error
-reports.
+or redacted.
 
 ## Robokassa
 

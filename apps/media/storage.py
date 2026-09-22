@@ -115,7 +115,8 @@ class LocalStorageAdapter:
     ``PUT /api/v1/media/upload/{token}/`` and ``GET /api/v1/media/file/{token}/``
     and carry a capability token that never contains the storage key.
 
-    This backend is refused outside ``DEBUG`` by the ``media.E001`` system check.
+    Production may use this backend when ``MEDIA_STORAGE_ROOT`` is a
+    persistent volume. ``media.W001`` warns that it is single-node.
     """
 
     supports_controlled_upload = True
