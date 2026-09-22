@@ -65,4 +65,23 @@ def check_robokassa_configuration(app_configs, **kwargs) -> list[Error]:
                 )
             )
 
+        if getattr(settings, "ROBOKASSA_TEST_MODE", False):
+            test_missing = []
+            if not str(getattr(settings, "ROBOKASSA_TEST_PASSWORD_1", "")).strip():
+                test_missing.append("ROBOKASSA_TEST_PASSWORD_1")
+            if not str(getattr(settings, "ROBOKASSA_TEST_PASSWORD_2", "")).strip():
+                test_missing.append("ROBOKASSA_TEST_PASSWORD_2")
+            if test_missing:
+                errors.append(
+                    Error(
+                        f"Robokassa test mode is missing {', '.join(test_missing)}.",
+                        hint=(
+                            "Set the test Password #1 and Password #2 from the "
+                            "Robokassa technical settings. They must differ from "
+                            "the live passwords."
+                        ),
+                        id="subscriptions.E003",
+                    )
+                )
+
     return errors

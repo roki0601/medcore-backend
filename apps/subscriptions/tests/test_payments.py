@@ -34,8 +34,10 @@ def api_client():
 @pytest.fixture(autouse=True)
 def configure_robokassa_test_settings(settings):
     settings.ROBOKASSA_MERCHANT_LOGIN = "test_merchant"
-    settings.ROBOKASSA_PASSWORD_1 = "test_pass_1"
-    settings.ROBOKASSA_PASSWORD_2 = "test_pass_2"
+    settings.ROBOKASSA_PASSWORD_1 = "live_pass_1"
+    settings.ROBOKASSA_PASSWORD_2 = "live_pass_2"
+    settings.ROBOKASSA_TEST_PASSWORD_1 = "test_pass_1"
+    settings.ROBOKASSA_TEST_PASSWORD_2 = "test_pass_2"
     settings.ROBOKASSA_HASH_ALGORITHM = "sha256"
     settings.ROBOKASSA_TEST_MODE = True
 
@@ -344,6 +346,7 @@ def test_init_payment_missing_plan_id_returns_400(api_client, user):
 def test_payment_init_rejects_unconfigured_provider(api_client, user, plan, settings):
     settings.ROBOKASSA_MERCHANT_LOGIN = ""
     settings.ROBOKASSA_PASSWORD_1 = ""
+    settings.ROBOKASSA_TEST_PASSWORD_1 = ""
 
     api_client.force_authenticate(user=user)
     response = api_client.post(
@@ -359,6 +362,7 @@ def test_payment_init_rejects_unconfigured_provider(api_client, user, plan, sett
 @pytest.mark.django_db
 def test_payment_init_rejects_missing_password_2(api_client, user, plan, settings):
     settings.ROBOKASSA_PASSWORD_2 = ""
+    settings.ROBOKASSA_TEST_PASSWORD_2 = ""
 
     api_client.force_authenticate(user=user)
     response = api_client.post(
@@ -381,7 +385,8 @@ def test_payment_init_rejects_missing_password_2(api_client, user, plan, setting
 def test_robokassa_result_success_activates_subscription(
     api_client, user, plan, settings
 ):
-    settings.ROBOKASSA_PASSWORD_2 = "pass_two_test"
+    settings.ROBOKASSA_TEST_PASSWORD_2 = "pass_two_test"
+    settings.ROBOKASSA_PASSWORD_2 = "live_pass_2"
     settings.ROBOKASSA_HASH_ALGORITHM = "sha256"
 
     payment, _ = create_payment(user=user, plan_id=plan.id)
@@ -422,7 +427,8 @@ def test_robokassa_result_success_activates_subscription(
 def test_robokassa_result_idempotent_duplicate_callback(
     api_client, user, plan, settings
 ):
-    settings.ROBOKASSA_PASSWORD_2 = "pass_two_test"
+    settings.ROBOKASSA_TEST_PASSWORD_2 = "pass_two_test"
+    settings.ROBOKASSA_PASSWORD_2 = "live_pass_2"
     settings.ROBOKASSA_HASH_ALGORITHM = "sha256"
 
     payment, _ = create_payment(user=user, plan_id=plan.id)
@@ -462,7 +468,8 @@ def test_robokassa_result_idempotent_duplicate_callback(
 
 @pytest.mark.django_db
 def test_robokassa_result_invalid_signature_rejected(api_client, user, plan, settings):
-    settings.ROBOKASSA_PASSWORD_2 = "pass_two_test"
+    settings.ROBOKASSA_TEST_PASSWORD_2 = "pass_two_test"
+    settings.ROBOKASSA_PASSWORD_2 = "live_pass_2"
 
     payment, _ = create_payment(user=user, plan_id=plan.id)
 
@@ -489,12 +496,14 @@ def test_robokassa_result_cannot_succeed_when_password_2_is_empty(
 ):
     settings.ROBOKASSA_MERCHANT_LOGIN = "test_merchant"
     settings.ROBOKASSA_PASSWORD_1 = "test_pass_1"
-    settings.ROBOKASSA_PASSWORD_2 = "pass_two_test"
+    settings.ROBOKASSA_TEST_PASSWORD_2 = "pass_two_test"
+    settings.ROBOKASSA_PASSWORD_2 = "live_pass_2"
 
     payment, _ = create_payment(user=user, plan_id=plan.id)
 
     # Now password_2 is empty (e.g. misconfiguration in production)
     settings.ROBOKASSA_PASSWORD_2 = ""
+    settings.ROBOKASSA_TEST_PASSWORD_2 = ""
 
     # Attacker tries to compute signature with empty password
     forged_sig = hashlib.sha256(f"990.00:{payment.id}:".encode()).hexdigest()
@@ -518,7 +527,8 @@ def test_robokassa_result_cannot_succeed_when_password_2_is_empty(
 
 @pytest.mark.django_db
 def test_robokassa_result_amount_mismatch_rejected(api_client, user, plan, settings):
-    settings.ROBOKASSA_PASSWORD_2 = "pass_two_test"
+    settings.ROBOKASSA_TEST_PASSWORD_2 = "pass_two_test"
+    settings.ROBOKASSA_PASSWORD_2 = "live_pass_2"
 
     payment, _ = create_payment(user=user, plan_id=plan.id)
     wrong_sum = "500.00"  # Plan was 990.00
@@ -546,7 +556,8 @@ def test_robokassa_result_amount_mismatch_rejected(api_client, user, plan, setti
 
 @pytest.mark.django_db
 def test_robokassa_result_unknown_inv_id_rejected(api_client, settings):
-    settings.ROBOKASSA_PASSWORD_2 = "pass_two_test"
+    settings.ROBOKASSA_TEST_PASSWORD_2 = "pass_two_test"
+    settings.ROBOKASSA_PASSWORD_2 = "live_pass_2"
 
     unknown_id = 999999
     out_sum = "990.00"
@@ -580,7 +591,8 @@ def test_robokassa_result_missing_parameters_rejected(api_client):
 
 @pytest.mark.django_db
 def test_robokassa_result_get_fallback_success(api_client, user, plan, settings):
-    settings.ROBOKASSA_PASSWORD_2 = "pass_two_test"
+    settings.ROBOKASSA_TEST_PASSWORD_2 = "pass_two_test"
+    settings.ROBOKASSA_PASSWORD_2 = "live_pass_2"
     settings.ROBOKASSA_HASH_ALGORITHM = "sha256"
 
     payment, _ = create_payment(user=user, plan_id=plan.id)
@@ -604,7 +616,8 @@ def test_robokassa_result_get_fallback_success(api_client, user, plan, settings)
 
 @pytest.mark.django_db
 def test_robokassa_overlapping_subscriptions(user, plan, settings):
-    settings.ROBOKASSA_PASSWORD_2 = "pass_two_test"
+    settings.ROBOKASSA_TEST_PASSWORD_2 = "pass_two_test"
+    settings.ROBOKASSA_PASSWORD_2 = "live_pass_2"
 
     # User already has an active subscription expiring in 5 days
     now = timezone.now()
@@ -672,7 +685,9 @@ def test_robokassa_system_checks_in_production(settings):
     settings.DEBUG = False
     settings.ROBOKASSA_MERCHANT_LOGIN = ""
     settings.ROBOKASSA_PASSWORD_1 = ""
+    settings.ROBOKASSA_TEST_PASSWORD_1 = ""
     settings.ROBOKASSA_PASSWORD_2 = ""
+    settings.ROBOKASSA_TEST_PASSWORD_2 = ""
     settings.ROBOKASSA_HASH_ALGORITHM = "sha256"
     settings.ROBOKASSA_TEST_MODE = False
 
@@ -696,6 +711,8 @@ def test_robokassa_system_check_warns_when_test_mode_enabled_in_production(setti
     settings.ROBOKASSA_MERCHANT_LOGIN = "merchant"
     settings.ROBOKASSA_PASSWORD_1 = "password-1"
     settings.ROBOKASSA_PASSWORD_2 = "password-2"
+    settings.ROBOKASSA_TEST_PASSWORD_1 = "test-pass-1"
+    settings.ROBOKASSA_TEST_PASSWORD_2 = "test-pass-2"
     settings.ROBOKASSA_HASH_ALGORITHM = "sha256"
     settings.ROBOKASSA_TEST_MODE = True
 
@@ -703,3 +720,71 @@ def test_robokassa_system_check_warns_when_test_mode_enabled_in_production(setti
 
     assert {message.id for message in messages} == {"subscriptions.W001"}
     assert isinstance(messages[0], CheckWarning)
+
+
+@pytest.mark.django_db
+def test_test_mode_uses_test_passwords_for_checkout_and_result(user, plan, settings):
+    settings.ROBOKASSA_TEST_MODE = True
+    settings.ROBOKASSA_PASSWORD_1 = "live_pass_1"
+    settings.ROBOKASSA_PASSWORD_2 = "live_pass_2"
+    settings.ROBOKASSA_TEST_PASSWORD_1 = "cabinet_test_1"
+    settings.ROBOKASSA_TEST_PASSWORD_2 = "cabinet_test_2"
+
+    payment = Payment.objects.create(
+        user=user,
+        plan=plan,
+        amount=plan.price_rub,
+        status=Payment.Status.PENDING,
+    )
+    out_sum = "990.00"
+    test_checkout = calculate_payment_signature(
+        merchant_login="test_merchant",
+        out_sum=out_sum,
+        inv_id=payment.pk,
+        password_1="cabinet_test_1",
+    )
+    live_checkout = calculate_payment_signature(
+        merchant_login="test_merchant",
+        out_sum=out_sum,
+        inv_id=payment.pk,
+        password_1="live_pass_1",
+    )
+    url = build_payment_url(payment)
+    params = parse_qs(urlparse(url).query)
+    assert params["SignatureValue"] == [test_checkout]
+    assert params["SignatureValue"] != [live_checkout]
+    assert params["IsTest"] == ["1"]
+
+    live_result = calculate_result_signature(
+        out_sum=out_sum, inv_id=payment.pk, password_2="live_pass_2"
+    )
+    test_result = calculate_result_signature(
+        out_sum=out_sum, inv_id=payment.pk, password_2="cabinet_test_2"
+    )
+    assert verify_result_signature(out_sum, payment.pk, test_result) is True
+    assert verify_result_signature(out_sum, payment.pk, live_result) is False
+
+    settings.ROBOKASSA_TEST_MODE = False
+    live_url = build_payment_url(payment)
+    live_params = parse_qs(urlparse(live_url).query)
+    assert live_params["SignatureValue"] == [live_checkout]
+    assert "IsTest" not in live_params
+    assert verify_result_signature(out_sum, payment.pk, live_result) is True
+    assert verify_result_signature(out_sum, payment.pk, test_result) is False
+
+
+def test_production_check_requires_test_passwords_in_test_mode(settings):
+    from apps.subscriptions.checks import check_robokassa_configuration
+
+    settings.DEBUG = False
+    settings.ROBOKASSA_MERCHANT_LOGIN = "merchant"
+    settings.ROBOKASSA_PASSWORD_1 = "password-1"
+    settings.ROBOKASSA_PASSWORD_2 = "password-2"
+    settings.ROBOKASSA_TEST_PASSWORD_1 = ""
+    settings.ROBOKASSA_TEST_PASSWORD_2 = ""
+    settings.ROBOKASSA_HASH_ALGORITHM = "sha256"
+    settings.ROBOKASSA_TEST_MODE = True
+
+    error_ids = {message.id for message in check_robokassa_configuration(None)}
+    assert "subscriptions.E003" in error_ids
+    assert "subscriptions.W001" in error_ids
