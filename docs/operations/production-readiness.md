@@ -19,7 +19,8 @@ missing or unsafe:
 - `REDIS_URL`;
 - `ROBOKASSA_MERCHANT_LOGIN`, `ROBOKASSA_PASSWORD_1`,
   `ROBOKASSA_PASSWORD_2`, `ROBOKASSA_HASH_ALGORITHM`, and explicit
-  `ROBOKASSA_TEST_MODE=true|false`;
+  `ROBOKASSA_TEST_MODE=true|false`. Test mode also requires
+  `ROBOKASSA_TEST_PASSWORD_1` and `ROBOKASSA_TEST_PASSWORD_2`.
 - `MEDIA_STORAGE_BACKEND=s3`, `MEDIA_S3_BUCKET`, `MEDIA_S3_ACCESS_KEY`, and
   `MEDIA_S3_SECRET_KEY`.
 
@@ -81,7 +82,9 @@ reports.
 ## Robokassa
 
 Set `ROBOKASSA_TEST_MODE` explicitly. Use `false` for production merchant
-accounts. ResultURL authenticity and amount checks are performed server-side;
+accounts. When it is `true`, checkout and ResultURL use
+`ROBOKASSA_TEST_PASSWORD_1` and `ROBOKASSA_TEST_PASSWORD_2`, not the live
+passwords. ResultURL authenticity and amount checks are performed server-side;
 SuccessURL/FailURL are buyer UX endpoints and do not grant entitlement.
 
 ## Startup and checks

@@ -21,6 +21,28 @@ class RobokassaConfigurationError(ValueError):
     """Raised when Robokassa provider is invoked without valid configuration."""
 
 
+def _setting_text(name: str) -> str:
+    return str(getattr(settings, name, "")).strip()
+
+
+def robokassa_test_mode() -> bool:
+    return bool(getattr(settings, "ROBOKASSA_TEST_MODE", False))
+
+
+def active_robokassa_password_1() -> str:
+    """Password #1 for the active cabinet: test pair when test mode is on."""
+    if robokassa_test_mode():
+        return _setting_text("ROBOKASSA_TEST_PASSWORD_1")
+    return _setting_text("ROBOKASSA_PASSWORD_1")
+
+
+def active_robokassa_password_2() -> str:
+    """Password #2 for the active cabinet: test pair when test mode is on."""
+    if robokassa_test_mode():
+        return _setting_text("ROBOKASSA_TEST_PASSWORD_2")
+    return _setting_text("ROBOKASSA_PASSWORD_2")
+
+
 def format_out_sum(amount: Decimal | float | str) -> str:
     """Format payment amount to 2 decimal places as required by Robokassa."""
     dec = Decimal(str(amount)) if not isinstance(amount, Decimal) else amount
@@ -93,11 +115,7 @@ def verify_result_signature(
 
     Fails closed if Password #2 is empty or hash_algorithm is unsupported.
     """
-    pwd_2 = (
-        password_2
-        if password_2 is not None
-        else getattr(settings, "ROBOKASSA_PASSWORD_2", "")
-    )
+    pwd_2 = password_2 if password_2 is not None else active_robokassa_password_2()
     pwd_2_str = str(pwd_2).strip()
     if not pwd_2_str:
         logger.error(
@@ -134,18 +152,15 @@ def verify_result_signature(
 
 def validate_robokassa_configuration() -> None:
     """Ensure Robokassa payment settings are present and valid."""
-    merchant_login = getattr(settings, "ROBOKASSA_MERCHANT_LOGIN", "")
-    password_1 = getattr(settings, "ROBOKASSA_PASSWORD_1", "")
-    password_2 = getattr(settings, "ROBOKASSA_PASSWORD_2", "")
+    merchant_login = _setting_text("ROBOKASSA_MERCHANT_LOGIN")
+    password_1 = active_robokassa_password_1()
+    password_2 = active_robokassa_password_2()
     hash_algorithm = getattr(settings, "ROBOKASSA_HASH_ALGORITHM", "sha256")
 
-    if (
-        not str(merchant_login).strip()
-        or not str(password_1).strip()
-        or not str(password_2).strip()
-    ):
+    if not merchant_login or not password_1 or not password_2:
+        mode = "test" if robokassa_test_mode() else "live"
         raise RobokassaConfigurationError(
-            "Robokassa merchant login or passwords are not configured."
+            f"Robokassa merchant login or {mode} passwords are not configured."
         )
 
     algo = str(hash_algorithm).strip().lower()
@@ -163,12 +178,12 @@ def build_payment_url(payment: Payment) -> str:
     """
     validate_robokassa_configuration()
 
-    merchant_login = getattr(settings, "ROBOKASSA_MERCHANT_LOGIN", "").strip()
-    password_1 = getattr(settings, "ROBOKASSA_PASSWORD_1", "").strip()
+    merchant_login = _setting_text("ROBOKASSA_MERCHANT_LOGIN")
+    password_1 = active_robokassa_password_1()
     hash_algorithm = (
         getattr(settings, "ROBOKASSA_HASH_ALGORITHM", "sha256").strip().lower()
     )
-    test_mode = getattr(settings, "ROBOKASSA_TEST_MODE", True)
+    test_mode = robokassa_test_mode()
     base_url = getattr(
         settings,
         "ROBOKASSA_BASE_URL",

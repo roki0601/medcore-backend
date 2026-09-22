@@ -127,3 +127,22 @@ def test_production_rejects_invalid_robokassa_hash_algorithm(algo):
 
     assert result.returncode != 0
     assert "ROBOKASSA_HASH_ALGORITHM" in result.stderr
+
+
+def test_production_test_mode_requires_test_passwords():
+    result = _import_production({"ROBOKASSA_TEST_MODE": "true"})
+
+    assert result.returncode != 0
+    assert "ROBOKASSA_TEST_PASSWORD_1" in result.stderr
+
+
+def test_production_test_mode_accepts_separate_test_passwords():
+    result = _import_production(
+        {
+            "ROBOKASSA_TEST_MODE": "true",
+            "ROBOKASSA_TEST_PASSWORD_1": "test-pass-1",
+            "ROBOKASSA_TEST_PASSWORD_2": "test-pass-2",
+        }
+    )
+
+    assert result.returncode == 0, result.stderr
