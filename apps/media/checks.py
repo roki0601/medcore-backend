@@ -1,29 +1,30 @@
 from __future__ import annotations
 
 from django.conf import settings
-from django.core.checks import Error, Tags, register
+from django.core.checks import Error, Tags, Warning, register
 
 
 @register(Tags.security)
-def check_local_storage_backend(app_configs, **kwargs) -> list[Error]:
-    """Refuse the development filesystem backend outside ``DEBUG``.
+def check_local_storage_backend(app_configs, **kwargs) -> list[Warning]:
+    """Warn that local media is single-node filesystem storage.
 
-    ``MEDIA_STORAGE_BACKEND=local`` stores media on the application filesystem,
-    which does not survive a container restart or a multi-instance deployment.
-    Production must select an S3-compatible backend, so selecting the local one
-    with ``DEBUG=False`` is a deployment error rather than a silent degradation.
+    ``MEDIA_STORAGE_BACKEND=local`` is valid in production when
+    ``MEDIA_STORAGE_ROOT`` is a persistent volume. It does not survive an
+    unmounted container filesystem and cannot be shared by multiple app
+    instances. S3 remains available for that case.
     """
 
     if settings.MEDIA_STORAGE_BACKEND == "local" and not settings.DEBUG:
         return [
-            Error(
-                "MEDIA_STORAGE_BACKEND=local is a development/test backend and "
-                "must not be used with DEBUG=False.",
+            Warning(
+                "MEDIA_STORAGE_BACKEND=local stores files on the application "
+                "filesystem.",
                 hint=(
-                    "Configure an S3-compatible object-storage backend: set "
-                    "MEDIA_STORAGE_BACKEND=s3 and the MEDIA_S3_* settings."
+                    "Mount a persistent volume at MEDIA_STORAGE_ROOT. Use "
+                    "MEDIA_STORAGE_BACKEND=s3 when more than one app instance "
+                    "must read the same objects."
                 ),
-                id="media.E001",
+                id="media.W001",
             )
         ]
     return []

@@ -1,7 +1,7 @@
 from django.core.checks import Tags
 from django.test import override_settings
 
-from apps.media.checks import check_storage_configuration
+from apps.media.checks import check_local_storage_backend, check_storage_configuration
 
 
 def test_unknown_media_backend_fails_system_check(settings):
@@ -10,6 +10,16 @@ def test_unknown_media_backend_fails_system_check(settings):
     errors = check_storage_configuration(None, tags=[Tags.security])
 
     assert [error.id for error in errors] == ["media.E002"]
+
+
+def test_local_storage_outside_debug_warns_without_failing(settings):
+    settings.DEBUG = False
+    settings.MEDIA_STORAGE_BACKEND = "local"
+
+    warnings = check_local_storage_backend(None)
+
+    assert [item.id for item in warnings] == ["media.W001"]
+    assert check_storage_configuration(None) == []
 
 
 @override_settings(
