@@ -8,7 +8,7 @@ services:
     image: prepmed-backend:${PREPMED_REVISION:-prod}
     restart: unless-stopped
     env_file:
-      - ${PREPMED_BACKEND_ENV:-/opt/prepmed/.env.backend}
+      - ${PREPMED_BACKEND_ENV:-/root/dev/medcore/.env.backend}
     environment:
       DJANGO_SETTINGS_MODULE: config.settings.production
       DATABASE_HOST: postgres
@@ -52,7 +52,7 @@ services:
     image: prepmed-frontend:${PREPMED_REVISION:-prod}
     restart: unless-stopped
     env_file:
-      - ${PREPMED_FRONTEND_ENV:-/opt/prepmed/.env.frontend}
+      - ${PREPMED_FRONTEND_ENV:-/root/dev/medcore/.env.frontend}
     environment:
       NODE_ENV: production
       HOSTNAME: 0.0.0.0

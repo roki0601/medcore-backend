@@ -34,7 +34,7 @@ make pre-commit
 `make compose-up`, `make compose-migrate` and `make compose-down`. It is not
 the production VPS topology.
 
-Production on the VPS uses `compose.prod.yaml` from `/opt/prepmed`. Caddy stays
+Production on the VPS uses `compose.prod.yaml` from `/root/dev/medcore`. Caddy stays
 on the host. PostgreSQL and Redis publish no host ports. See
 `docs/operations/production-readiness.md`.
 

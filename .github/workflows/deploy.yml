@@ -50,4 +50,4 @@ jobs:
             ssh_args+=(-o StrictHostKeyChecking=accept-new)
           fi
           ssh "${ssh_args[@]}" "$PROD_USER@$PROD_HOST" \
-            "cd /opt/prepmed && PREPMED_BACKEND_SHA=$(printf '%q' "$EXPECTED_SHA") ./deploy.sh"
+            "cd /root/dev/medcore && PREPMED_BACKEND_SHA=$(printf '%q' "$EXPECTED_SHA") ./deploy.sh"

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 prepmed_root() {
-  printf '%s\n' "${PREPMED_ROOT:-/opt/prepmed}"
+  printf '%s\n' "${PREPMED_ROOT:-/root/dev/medcore}"
 }
 
 prepmed_compose() {

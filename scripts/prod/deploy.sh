@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="${PREPMED_ROOT:-/opt/prepmed}"
+ROOT="${PREPMED_ROOT:-/root/dev/medcore}"
 BACKEND_DIR="$ROOT/medcore-backend"
 FRONTEND_DIR="$ROOT/medcore-frontend"
 LOCK_FILE="$ROOT/.deploy.lock"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LEGACY_FRONTEND_CONTAINER="${PREPMED_LEGACY_FRONTEND_CONTAINER:-medcore-frontend}"
 
 if [[ ! -d "$BACKEND_DIR/.git" || ! -d "$FRONTEND_DIR/.git" ]]; then
   echo "missing git clones under $ROOT" >&2
@@ -62,6 +63,85 @@ require_mode_600() {
   fi
 }
 
+listener_pids() {
+  local port="$1"
+  ss -ltnpH "sport = :$port" | grep -oE 'pid=[0-9]+' | cut -d= -f2 | sort -u
+}
+
+container_on_port() {
+  local port="$1"
+  docker ps --format '{{.Names}} {{.Ports}}' \
+    | awk -v port="127.0.0.1:${port}->" 'index($0, port) {print $1}'
+}
+
+release_legacy_listeners() {
+  local names pid cmd cwd master=""
+  names="$(container_on_port 3000 || true)"
+  if [[ -n "$names" && "$names" != "$LEGACY_FRONTEND_CONTAINER" && "$names" != "prepmed-frontend-1" ]]; then
+    echo "port 3000 is held by unexpected container: $names" >&2
+    exit 1
+  fi
+  names="$(container_on_port 8000 || true)"
+  if [[ -n "$names" && "$names" != "prepmed-backend-1" ]]; then
+    echo "port 8000 is held by unexpected container: $names" >&2
+    exit 1
+  fi
+
+  if docker ps --format '{{.Names}}' | grep -qx "$LEGACY_FRONTEND_CONTAINER"; then
+    local source
+    source="$(docker inspect --format '{{range .Mounts}}{{if eq .Destination "/app"}}{{.Source}}{{end}}{{end}}' "$LEGACY_FRONTEND_CONTAINER")"
+    if [[ "$source" != "$FRONTEND_DIR" ]]; then
+      echo "$LEGACY_FRONTEND_CONTAINER mount is $source, expected $FRONTEND_DIR" >&2
+      exit 1
+    fi
+    echo "stopping legacy frontend container $LEGACY_FRONTEND_CONTAINER"
+    docker stop "$LEGACY_FRONTEND_CONTAINER" >/dev/null
+  fi
+
+  if [[ -z "$(container_on_port 8000 || true)" ]]; then
+    for pid in $(listener_pids 8000); do
+      cmd="$(tr '\0' ' ' < "/proc/$pid/cmdline")"
+      cwd="$(readlink "/proc/$pid/cwd")"
+      if [[ "$cmd" != *gunicorn* || "$cmd" != *config.wsgi* || "$cwd" != "$BACKEND_DIR" ]]; then
+        echo "port 8000 is held by unexpected process $pid ($cmd)" >&2
+        exit 1
+      fi
+      local ppid
+      ppid="$(awk '/^PPid:/ {print $2}' "/proc/$pid/status")"
+      if [[ "$ppid" == "1" ]]; then
+        master="$pid"
+      fi
+    done
+    if [[ -n "$(listener_pids 8000)" && -z "$master" ]]; then
+      echo "host gunicorn is listening but its master was not identified; refusing to kill it" >&2
+      exit 1
+    fi
+    if [[ -n "$master" ]]; then
+      echo "stopping host gunicorn pid $master"
+      kill -TERM "$master"
+      local attempt
+      for attempt in $(seq 1 30); do
+        if ! kill -0 "$master" 2>/dev/null; then
+          break
+        fi
+        sleep 1
+      done
+      if kill -0 "$master" 2>/dev/null; then
+        kill -KILL "$master"
+      fi
+    fi
+  fi
+
+  if [[ -n "$(listener_pids 3000)" && -z "$(container_on_port 3000 || true)" ]]; then
+    echo "port 3000 is still occupied after stopping $LEGACY_FRONTEND_CONTAINER" >&2
+    exit 1
+  fi
+  if [[ -n "$(listener_pids 8000)" && -z "$(container_on_port 8000 || true)" ]]; then
+    echo "port 8000 is still occupied after stopping host gunicorn" >&2
+    exit 1
+  fi
+}
+
 require_mode_600 "$ROOT/.env.backend"
 require_mode_600 "$ROOT/.env.frontend"
 
@@ -70,7 +150,7 @@ export PREPMED_REVISION="$(
 )-$(git -C "$FRONTEND_DIR" rev-parse --short=12 HEAD)"
 
 prepmed_compose build
-prepmed_compose up -d postgres redis
+"$SCRIPT_DIR/cutover-legacy-data.sh"
 
 wait_healthy() {
   local service="$1"
@@ -90,11 +170,22 @@ wait_healthy() {
   return 1
 }
 
+prepmed_compose up -d postgres redis
 wait_healthy postgres
 wait_healthy redis
 
 prepmed_compose run --rm --no-deps backend python manage.py migrate --noinput
 prepmed_compose run --rm --no-deps backend python manage.py check
+
+if [[ ! -f "$ROOT/.prepmed-postgres-ready" ]]; then
+  cat > "$ROOT/.prepmed-postgres-ready" <<EOF
+source_volume=fresh
+django_migrations=created-by-migrate
+EOF
+  chmod 600 "$ROOT/.prepmed-postgres-ready"
+fi
+
+release_legacy_listeners
 
 prepmed_compose up -d backend frontend
 wait_healthy backend
