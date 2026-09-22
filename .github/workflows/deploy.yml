@@ -1,0 +1,53 @@
+name: Production deploy
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Deploy over SSH
+        env:
+          PROD_HOST: ${{ secrets.PROD_HOST }}
+          PROD_USER: ${{ secrets.PROD_USER }}
+          PROD_SSH_KEY: ${{ secrets.PROD_SSH_KEY }}
+          PROD_PORT: ${{ secrets.PROD_PORT }}
+          PROD_KNOWN_HOSTS: ${{ secrets.PROD_KNOWN_HOSTS }}
+          EXPECTED_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${PROD_HOST}" || -z "${PROD_USER}" || -z "${PROD_SSH_KEY}" ]]; then
+            echo "PROD_HOST, PROD_USER and PROD_SSH_KEY must be configured" >&2
+            exit 1
+          fi
+          if [[ ! "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "refusing unexpected backend SHA" >&2
+            exit 1
+          fi
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$PROD_SSH_KEY" > ~/.ssh/prepmed_deploy
+          chmod 600 ~/.ssh/prepmed_deploy
+          port="${PROD_PORT:-22}"
+          ssh_args=(-i "$HOME/.ssh/prepmed_deploy" -p "$port" -o IdentitiesOnly=yes)
+          if [[ -n "${PROD_KNOWN_HOSTS}" ]]; then
+            printf '%s\n' "$PROD_KNOWN_HOSTS" > ~/.ssh/known_hosts
+            chmod 600 ~/.ssh/known_hosts
+            ssh_args+=(-o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts")
+          else
+            ssh_args+=(-o StrictHostKeyChecking=accept-new)
+          fi
+          ssh "${ssh_args[@]}" "$PROD_USER@$PROD_HOST" \
+            "cd /opt/prepmed && PREPMED_BACKEND_SHA=$(printf '%q' "$EXPECTED_SHA") ./deploy.sh"

@@ -137,3 +137,114 @@ No health endpoint makes external provider calls.
 6. Verify profile, learning state, dashboard, and protected media access.
 7. Confirm logs contain no JWTs, refresh cookies, Telegram/Robokassa/S3
    secrets, request payloads, or capability URLs.
+
+## PrepMed VPS
+
+Production for `https://prepmed.ru` is a Docker Compose project on the existing
+VPS. Caddy remains a host systemd service and is not moved into Docker. Do not
+change the firewall from this repository. The public listener set should be
+22, 80 and 443 only. Do not publish 3000, 8000, 5432 or 6379. Frontend and
+backend bind `127.0.0.1` so only Caddy on the host can reach them.
+
+Server layout:
+
+```text
+/opt/prepmed/
+  medcore-backend/
+  medcore-frontend/
+  .env.backend          # mode 600, not in git
+  .env.frontend         # mode 600, not in git
+  deploy.sh             # symlink to medcore-backend/scripts/prod/deploy.sh
+  backups/              # same-VPS dumps; not disaster recovery
+```
+
+`compose.prod.yaml` is invoked from `/opt/prepmed` by `scripts/prod/deploy.sh`.
+It does not replace `compose.yaml`. Migrations run once per deploy, before the
+new backend and frontend containers replace the running ones. A failed
+migration stops the deploy and leaves the previous containers in place.
+
+`NEXT_PUBLIC_*` values are frontend build args, not backend secrets. The
+production API base URL is `https://prepmed.ru/api/v1`. Server components in
+the frontend container use that public URL. The compose file maps `prepmed.ru`
+and `www.prepmed.ru` to the host gateway so those server reads reach Caddy
+without hairpin NAT. Keep `SECURE_SSL_REDIRECT=false`: Caddy terminates TLS,
+and localhost health checks are HTTP. Set `SECURE_PROXY_SSL_HEADER_ENABLED=true`
+so Django trusts Caddy's `X-Forwarded-Proto`. Port 8000 is bound to localhost,
+which is the trust boundary for that header.
+
+The production image installs the `storage-s3` extra and runs `collectstatic`
+at build time. WhiteNoise continues to serve `/static/`; Caddy keeps proxying
+`/static/*` to the backend. No separate static server is added.
+
+### Initial setup
+
+Both GitHub repositories are private. The VPS needs a read-only deploy key for
+each repository. Application secrets stay in the env files, not in GitHub.
+
+```bash
+sudo mkdir -p /opt/prepmed
+sudo chown "$USER:$USER" /opt/prepmed
+cd /opt/prepmed
+git clone git@github.com:roki0601/medcore-backend.git
+git clone git@github.com:roki0601/medcore-frontend.git
+ln -sfn medcore-backend/scripts/prod/deploy.sh deploy.sh
+install -m 600 /dev/null .env.backend
+install -m 600 /dev/null .env.frontend
+```
+
+Fill the env files from the commented production block in `.env.example` and
+the frontend `.env.example`. Then run `./deploy.sh` once by hand. Add the
+GitHub Actions secrets only after that manual deploy works. The deploy
+workflow is inert until it is on `main`.
+
+GitHub secrets, SSH only:
+
+- `PROD_HOST`
+- `PROD_USER`
+- `PROD_SSH_KEY`
+- `PROD_PORT` optional
+- `PROD_KNOWN_HOSTS` optional; without it the runner trusts the host key on
+  first use
+
+Do not store `DJANGO_SECRET_KEY`, database passwords, Telegram or Robokassa
+secrets in GitHub.
+
+### Backup
+
+`scripts/prod/backup-db.sh` writes a timestamped `pg_dump -Fc` file under
+`/opt/prepmed/backups` and exits non-zero on failure. A copy on this VPS is
+not disaster recovery. Copy the dump off the server after every backup you
+intend to rely on.
+
+### Reboot
+
+Docker services use `restart: unless-stopped`. After a reboot, recovery is
+Docker starting, containers starting, and Caddy starting via systemd. No manual
+process start should be required.
+
+- [ ] `systemctl is-enabled docker caddy` is `enabled`.
+- [ ] After reboot, `docker compose ps` shows backend, frontend, postgres and
+      redis up.
+- [ ] `curl --fail --header 'Host: prepmed.ru' http://127.0.0.1:8000/api/v1/health/ready/`
+- [ ] `curl --fail http://127.0.0.1:3000/`
+- [ ] `curl --fail https://prepmed.ru/`
+- [ ] `curl --fail https://prepmed.ru/api/v1/health/ready/`
+- [ ] `ss -ltn` does not show public listeners on 3000, 8000, 5432 or 6379.
+
+### Rollback
+
+Do not run `docker compose down -v` or `docker system prune -a`. Those can
+delete the database volume or the images needed to recover.
+
+If migrate has not run, check out the previous `main` commits and run
+`./deploy.sh` again. If migrate has run, do not expect a code checkout to undo
+schema changes. Restore an offsite `pg_dump -Fc` only when the schema and data
+must move backward:
+
+```bash
+pg_restore --clean --if-exists --no-owner --no-acl \
+  -U "$POSTGRES_USER" -d "$POSTGRES_DB" /path/to/prepmed.dump
+```
+
+Run that restore through `docker compose exec -T postgres`. Take a fresh dump
+before a restore.

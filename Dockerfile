@@ -12,9 +12,14 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 COPY pyproject.toml uv.lock .python-version ./
-RUN uv sync --frozen --no-dev
+RUN uv sync --frozen --no-dev --extra storage-s3
 
 COPY . .
+
+# WhiteNoise serves STATIC_ROOT. Production settings refuse to import without
+# secrets; static storage is defined in base settings, which local imports.
+RUN DJANGO_SETTINGS_MODULE=config.settings.local \
+    python manage.py collectstatic --noinput
 
 EXPOSE 8000
 

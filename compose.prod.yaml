@@ -1,0 +1,121 @@
+name: prepmed
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: prepmed-backend:${PREPMED_REVISION:-prod}
+    restart: unless-stopped
+    env_file:
+      - ${PREPMED_BACKEND_ENV:-/opt/prepmed/.env.backend}
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      DATABASE_HOST: postgres
+      DATABASE_PORT: "5432"
+      REDIS_URL: redis://redis:6379/1
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import os, urllib.request;
+          host = os.environ["DJANGO_ALLOWED_HOSTS"].split(",")[0].strip();
+          request = urllib.request.Request(
+          "http://127.0.0.1:8000/api/v1/health/ready/",
+          headers={"Host": host});
+          response = urllib.request.urlopen(request, timeout=3);
+          raise SystemExit(0 if response.status == 200 else 1)
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    networks:
+      - prepmed
+
+  frontend:
+    build:
+      context: ${PREPMED_FRONTEND_CONTEXT:-../medcore-frontend}
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:?NEXT_PUBLIC_API_BASE_URL is required}
+        NEXT_PUBLIC_TELEGRAM_BOT_USERNAME: ${NEXT_PUBLIC_TELEGRAM_BOT_USERNAME:-}
+        NEXT_PUBLIC_YANDEX_METRIKA_ID: ${NEXT_PUBLIC_YANDEX_METRIKA_ID:-}
+    image: prepmed-frontend:${PREPMED_REVISION:-prod}
+    restart: unless-stopped
+    env_file:
+      - ${PREPMED_FRONTEND_ENV:-/opt/prepmed/.env.frontend}
+    environment:
+      NODE_ENV: production
+      HOSTNAME: 0.0.0.0
+      PORT: "3000"
+    ports:
+      - "127.0.0.1:3000:3000"
+    extra_hosts:
+      - "prepmed.ru:host-gateway"
+      - "www.prepmed.ru:host-gateway"
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - >-
+          fetch('http://127.0.0.1:3000/').then((response)
+          => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
+    networks:
+      - prepmed
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DATABASE_NAME:?DATABASE_NAME is required}
+      POSTGRES_USER: ${DATABASE_USER:?DATABASE_USER is required}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:?DATABASE_PASSWORD is required}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - prepmed
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - prepmed
+
+networks:
+  prepmed:
+    name: prepmed
+
+volumes:
+  postgres_data:
+    name: prepmed_postgres_data
+  redis_data:
+    name: prepmed_redis_data
