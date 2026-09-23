@@ -74,5 +74,8 @@ jobs:
       - name: Check migrations
         run: uv run python manage.py makemigrations --check --dry-run
 
+      - name: Collect static files
+        run: uv run python manage.py collectstatic --noinput
+
       - name: Run tests
         run: uv run pytest --create-db
