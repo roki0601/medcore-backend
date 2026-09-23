@@ -12,6 +12,7 @@ dependencies = [
     "drf-spectacular",
     "gunicorn",
     "psycopg[binary]",
+    "pydantic>=2.0",
     "python-dotenv",
     "redis",
     "whitenoise>=6.12.0",
