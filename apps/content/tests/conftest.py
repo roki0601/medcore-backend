@@ -60,6 +60,14 @@ def configure_content_test_env(settings):
     }
     settings.JWT_SIGNING_KEY = "test-jwt-signing-key-with-at-least-32-bytes"
     settings.MEDCORE_CONTENT_API_KEY = INTEGRATION_API_KEY
+    settings.STORAGES = {
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+    }
     from rest_framework_simplejwt.settings import api_settings
 
     api_settings.SIGNING_KEY = settings.JWT_SIGNING_KEY
