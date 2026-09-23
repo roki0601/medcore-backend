@@ -120,7 +120,7 @@ def test_valid_json_import_creates_all_entities(subject_and_section):
     assert topic.section == section
     assert topic.status == Topic.Status.PUBLISHED
     assert topic.access_level == Topic.AccessLevel.FREE
-    assert topic.external_id == "medcore-content:topic:stafilokokki"
+    assert topic.external_id == f"medcore-content:topic:{section.pk}:stafilokokki"
 
     # Verify Blocks
     blocks = list(topic.blocks.order_by("position"))
@@ -152,7 +152,7 @@ def test_valid_json_import_creates_all_entities(subject_and_section):
     quiz = quizzes[0]
     assert quiz.title == "Стафилококки"
     assert quiz.description == "Тест по стафилококкам"
-    assert quiz.external_id == "medcore-content:topic:stafilokokki:quiz"
+    assert quiz.external_id == f"medcore-content:topic:{section.pk}:stafilokokki:quiz"
 
     questions = list(quiz.questions.order_by("position"))
     assert len(questions) == 1
@@ -508,7 +508,9 @@ def test_admin_import_flow_post_success(make_user, subject_and_section):
     )
 
     assert resp.status_code == 302
-    topic = Topic.objects.get(external_id="medcore-content:topic:stafilokokki")
+    topic = Topic.objects.get(
+        external_id=f"medcore-content:topic:{section.pk}:stafilokokki"
+    )
     assert resp.url == f"/admin/content/topic/{topic.pk}/change/"
 
 
@@ -562,3 +564,124 @@ def test_admin_import_non_json_extension(make_user, subject_and_section):
 
     assert resp.status_code == 200
     assert "Only .json files are supported" in resp.content.decode("utf-8")
+
+
+@pytest.mark.django_db
+def test_import_with_requested_position_shifts_neighbors_without_conflict(
+    subject_and_section,
+):
+    subject, section = subject_and_section
+    t1 = Topic.objects.create(
+        section=section, title="Topic 1", slug="topic-1", position=1
+    )
+    t2 = Topic.objects.create(
+        section=section, title="Topic 2", slug="topic-2", position=2
+    )
+    t3 = Topic.objects.create(
+        section=section, title="Topic 3", slug="topic-3", position=3
+    )
+
+    payload = _make_valid_payload(topic_title="Inserted Topic")
+    result = import_study_document(payload, section=section, position=2)
+
+    # Check that positions are strictly 1, 2, 3, 4 without conflict
+    all_topics = list(Topic.objects.filter(section=section).order_by("position"))
+    assert [t.position for t in all_topics] == [1, 2, 3, 4]
+    assert all_topics[0].pk == t1.pk
+    assert all_topics[1].pk == result.topic.pk
+    assert all_topics[1].position == 2
+    assert all_topics[2].pk == t2.pk
+    assert all_topics[2].position == 3
+    assert all_topics[3].pk == t3.pk
+    assert all_topics[3].position == 4
+
+    # Repeated import of the same topic with position=2 must not re-shift
+    result2 = import_study_document(payload, section=section, position=2)
+    assert result2.topic.pk == result.topic.pk
+    all_topics_after = list(Topic.objects.filter(section=section).order_by("position"))
+    assert [t.position for t in all_topics_after] == [1, 2, 3, 4]
+    assert all_topics_after[1].pk == result.topic.pk
+
+
+@pytest.mark.django_db
+def test_import_topics_with_same_title_in_different_sections_scoped_by_section_identity(
+    subject_and_section,
+):
+    subject, section_a = subject_and_section
+    section_a.external_id = "sec-ext-a"
+    section_a.save()
+
+    section_b = Section.objects.create(
+        subject=subject,
+        title="Вторая секция",
+        slug="vtoraya-sektsiya",
+        position=2,
+    )  # section_b has no external_id -> fallback to pk
+
+    payload_a = _make_valid_payload(topic_title="Стафилококки")
+    payload_b = _make_valid_payload(topic_title="Стафилококки")
+
+    res_a = import_study_document(payload_a, section=section_a)
+    res_b = import_study_document(payload_b, section=section_b)
+
+    assert res_a.topic.pk != res_b.topic.pk
+    assert Topic.objects.count() == 2
+
+    topic_a = Topic.objects.get(pk=res_a.topic.pk)
+    topic_b = Topic.objects.get(pk=res_b.topic.pk)
+
+    assert topic_a.section == section_a
+    assert topic_b.section == section_b
+    assert topic_a.external_id == "medcore-content:topic:sec-ext-a:stafilokokki"
+    assert topic_b.external_id == f"medcore-content:topic:{section_b.pk}:stafilokokki"
+
+    # Repeated import to section_a updates only topic_a
+    payload_a["content"]["blocks"][0]["markdown_body"] = "Обновлено в секции A"
+    res_a_again = import_study_document(payload_a, section=section_a)
+    assert res_a_again.topic.pk == topic_a.pk
+    assert Topic.objects.count() == 2
+
+    topic_a.refresh_from_db()
+    topic_b.refresh_from_db()
+    assert topic_a.section == section_a
+    assert topic_b.section == section_b
+    assert (
+        topic_a.blocks.order_by("position").first().markdown_body
+        == "Обновлено в секции A"
+    )
+    assert (
+        topic_b.blocks.order_by("position").first().markdown_body
+        != "Обновлено в секции A"
+    )
+
+
+@pytest.mark.django_db
+def test_admin_import_flow_with_position(make_user, subject_and_section):
+    subject, section = subject_and_section
+    editor = make_user(username="editor_pos", role="editor", is_staff=True)
+    client = Client()
+    client.force_login(editor)
+
+    payload = _make_valid_payload()
+    json_bytes = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    uploaded = SimpleUploadedFile(
+        "staph.json", json_bytes, content_type="application/json"
+    )
+
+    resp = client.post(
+        "/admin/content/topic/import-json/",
+        data={
+            "subject": subject.pk,
+            "section": section.pk,
+            "position": 5,
+            "status": Topic.Status.DRAFT,
+            "access_level": Topic.AccessLevel.DEMO,
+            "file": uploaded,
+        },
+    )
+
+    assert resp.status_code == 302
+    topic = Topic.objects.get(
+        external_id=f"medcore-content:topic:{section.pk}:stafilokokki"
+    )
+    assert topic.position == 5

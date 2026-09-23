@@ -57,6 +57,7 @@ def import_study_document(
     document: ImportStudyDocument | dict[str, Any],
     *,
     section: Section,
+    position: int | None = None,
     status: str = Topic.Status.DRAFT,
     access_level: str = Topic.AccessLevel.DEMO,
     actor=None,
@@ -65,6 +66,12 @@ def import_study_document(
 
     All writes are executed atomically inside a single transaction.
     If any error occurs, the transaction rolls back cleanly.
+
+    Positional matching limitation:
+    Child entities (ContentBlock, Flashcard, QuizQuestion, QuizAnswer) are
+    matched and updated by ordinal position (1..N). This preserves primary keys
+    only for elements remaining at the same position. Insertions or reordering
+    can semantically rebind an existing PK to new content at that position.
     """
     if isinstance(document, dict):
         doc = validate_and_parse_document(document)
@@ -84,12 +91,19 @@ def import_study_document(
                 f'ContentBlockType "{block.block_type}" does not exist.'
             )
 
-    # 2. Derive stable external_id
+    # 2. Derive stable external_id scoped to Section identity
     if doc.external_id and doc.external_id.strip():
         topic_external_id = doc.external_id.strip()[:255]
     else:
+        section_identity = (
+            section.external_id.strip()
+            if section.external_id and section.external_id.strip()
+            else str(section.pk)
+        )
         topic_slug = latin_base(topic_title, fallback="topic")
-        topic_external_id = f"medcore-content:topic:{topic_slug}"[:255]
+        topic_external_id = f"medcore-content:topic:{section_identity}:{topic_slug}"[
+            :255
+        ]
 
     try:
         with transaction.atomic():
@@ -102,6 +116,7 @@ def import_study_document(
                 section=section,
                 title=topic_title,
                 description=existing_topic.description if existing_topic else "",
+                position=position,
                 status=status,
                 access_level=access_level,
                 external_id=topic_external_id,

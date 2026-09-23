@@ -77,6 +77,17 @@
           </div>
         </div>
 
+        <div class="form-row field-position{% if form.position.errors %} errors{% endif %}">
+          {{ form.position.errors }}
+          <div>
+            <label for="{{ form.position.id_for_label }}">{{ form.position.label }}:</label>
+            {{ form.position }}
+            {% if form.position.help_text %}
+              <div class="help">{{ form.position.help_text }}</div>
+            {% endif %}
+          </div>
+        </div>
+
         <div class="form-row field-status{% if form.status.errors %} errors{% endif %}">
           {{ form.status.errors }}
           <div>

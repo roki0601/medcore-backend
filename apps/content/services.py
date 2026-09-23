@@ -86,14 +86,44 @@ def _assert_position_free(
         )
 
 
-def _assign_position(model, instance, *, explicit_position, parent, parent_field):
+def _shift_positions(
+    model, parent, parent_field: str, from_position: int, exclude_pk=None
+) -> None:
+    if parent is None or not parent_field:
+        return
+    conflicts = model.objects.select_for_update().filter(
+        **{parent_field: parent}, position__gte=from_position
+    )
+    if exclude_pk is not None:
+        conflicts = conflicts.exclude(pk=exclude_pk)
+    if not conflicts.filter(position=from_position).exists():
+        return
+    for item in conflicts.order_by("-position"):
+        item.position = item.position + 1
+        item.save(update_fields=["position"])
+
+
+def _assign_position(
+    model,
+    instance,
+    *,
+    explicit_position,
+    parent,
+    parent_field,
+    shift: bool = False,
+):
     """Assign a deterministic position, re-assigning when the parent changed."""
 
     if instance.pk is None:
         if explicit_position is not None:
-            _assert_position_free(
-                model, instance, explicit_position, parent, parent_field
-            )
+            if shift:
+                _shift_positions(
+                    model, parent, parent_field, explicit_position, exclude_pk=None
+                )
+            else:
+                _assert_position_free(
+                    model, instance, explicit_position, parent, parent_field
+                )
             instance.position = explicit_position
         else:
             instance.position = _next_position(model, parent, parent_field)
@@ -103,7 +133,19 @@ def _assign_position(model, instance, *, explicit_position, parent, parent_field
         instance.position = _next_position(model, parent, parent_field)
         return
     if explicit_position is not None:
-        _assert_position_free(model, instance, explicit_position, parent, parent_field)
+        if shift:
+            if instance.position != explicit_position:
+                _shift_positions(
+                    model,
+                    parent,
+                    parent_field,
+                    explicit_position,
+                    exclude_pk=instance.pk,
+                )
+        else:
+            _assert_position_free(
+                model, instance, explicit_position, parent, parent_field
+            )
         instance.position = explicit_position
 
 
@@ -353,6 +395,7 @@ def save_topic(
     cover=None,
     cover_provided: bool = False,
     instance: Topic | None = None,
+    shift: bool = False,
 ) -> Topic:
     topic = instance or Topic()
     with transaction.atomic():
@@ -370,6 +413,7 @@ def save_topic(
             explicit_position=position,
             parent=section,
             parent_field="section",
+            shift=shift,
         )
         return _save_instance(topic, model=Topic, title=title)
 
@@ -976,6 +1020,7 @@ def upsert_topic(
             cover=cover,
             cover_provided=cover_provided,
             instance=target,
+            shift=True,
         )
         return topic, created
 
