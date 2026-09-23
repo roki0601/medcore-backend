@@ -253,9 +253,11 @@ def get_user_dashboard(user) -> dict[str, Any]:
             {
                 "id": topic.pk,
                 "title": topic.title,
+                "slug": topic.slug,
                 "subject": {
                     "id": topic.section.subject.pk,
                     "title": topic.section.subject.title,
+                    "slug": topic.section.subject.slug,
                 },
                 "section": {
                     "id": topic.section.pk,

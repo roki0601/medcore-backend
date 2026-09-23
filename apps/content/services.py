@@ -7,7 +7,6 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError, models, transaction
 from django.db.models.deletion import ProtectedError
 from django.utils import timezone
-from django.utils.text import slugify
 
 from apps.common.exceptions import APIError
 from apps.content.models import (
@@ -22,6 +21,7 @@ from apps.content.models import (
     Subject,
     Topic,
 )
+from apps.content.slugs import RESERVED_SUBJECT_SLUGS, latin_base, unique_candidate
 from apps.media.models import MediaFile
 
 MAX_SLUG_LENGTH = 255
@@ -32,17 +32,22 @@ IMAGE_BLOCK_KEY = "image"
 
 
 def _unique_slug(model, title: str, *, instance=None) -> str:
-    base = slugify(title)[:MAX_SLUG_LENGTH] or model._meta.model_name
+    base = latin_base(
+        title,
+        fallback=model._meta.model_name,
+        max_length=MAX_SLUG_LENGTH,
+    )
     queryset = model.objects.all()
     if instance is not None and instance.pk is not None:
         queryset = queryset.exclude(pk=instance.pk)
-    candidate = base
-    suffix = 2
-    while queryset.filter(slug=candidate).exists():
-        tail = f"-{suffix}"
-        candidate = f"{base[: MAX_SLUG_LENGTH - len(tail)]}{tail}"
-        suffix += 1
-    return candidate
+    taken = set(queryset.values_list("slug", flat=True))
+    reserved = RESERVED_SUBJECT_SLUGS if model is Subject else frozenset()
+    return unique_candidate(
+        base,
+        taken=taken,
+        reserved=reserved,
+        max_length=MAX_SLUG_LENGTH,
+    )
 
 
 def _next_position(model, parent, parent_field: str) -> int:
@@ -113,11 +118,13 @@ def _validation_error(exc: DjangoValidationError) -> APIError:
 
 
 def _save_instance(instance, *, model, title: str, with_slug: bool = True):
-    """Persist with a deterministic slug, retrying on a concurrent slug race."""
+    """Persist a row. An existing slug stays stable across title edits."""
 
+    generate = with_slug and not instance.slug
+    attempts = SLUG_ATTEMPTS if generate else 1
     last_error: IntegrityError | None = None
-    for _ in range(SLUG_ATTEMPTS):
-        if with_slug:
+    for _ in range(attempts):
+        if generate:
             instance.slug = _unique_slug(model, title, instance=instance)
         try:
             instance.full_clean(validate_unique=False, validate_constraints=False)
@@ -129,6 +136,8 @@ def _save_instance(instance, *, model, title: str, with_slug: bool = True):
             return instance
         except IntegrityError as exc:
             last_error = exc
+            if generate:
+                instance.slug = ""
     raise APIError(
         "Content conflict while saving.",
         code="CONTENT_CONFLICT",

@@ -1,34 +1,23 @@
 # BE-010 — Slug-based public URLs
 
-Status: BLOCKED
+Status: IMPLEMENTED
 
-## Existing behavior
+Owner decision, 2026-09-23:
 
-Subject/Section/Topic have slugs, but the public API contract uses numeric IDs.
-Slugs are currently an auxiliary representation.
+- public canonical URLs are `/{subject_slug}` and `/{subject_slug}/{topic_slug}`;
+- section is not part of the URL;
+- old numeric public URLs are not redirected;
+- subject slug stays globally unique; topic slug stays globally unique, which is
+  stricter than unique-within-subject and still satisfies that URL;
+- a slug is generated once, in Latin kebab-case, and is not regenerated when the
+  title changes;
+- numeric API routes stay for admin, learning and existing clients;
+- IndexNow and slug history are out of scope.
 
-Do not replace numeric-ID routes while URL policy is unresolved.
+## Public reads
 
-## Owner decisions required
+- `GET /api/v1/subjects/by-slug/{slug}/`
+- `GET /api/v1/topics/by-slug/{subject_slug}/{topic_slug}/`
+- `GET /api/v1/catalog/sitemap/`
 
-Before a spec:
-
-- uniqueness scope for each slug;
-- collision handling;
-- case/Unicode normalization rules if different from current generation;
-- manual override validation;
-- what happens when a published slug changes;
-- whether old slugs redirect;
-- redirect/history retention;
-- whether API routes become slug-only, ID-or-slug, or frontend-only slugs.
-
-## Compatibility constraints
-
-If approved later:
-
-- existing numeric API clients must not break silently;
-- redirects/history belong to an explicit URL contract, not model magic;
-- content access rules remain unchanged;
-- slug changes must not expose unpublished/paid content.
-
-No implementation while BLOCKED.
+Draft topics are not found. Numeric routes and content access rules are unchanged.

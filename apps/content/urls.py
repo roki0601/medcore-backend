@@ -15,10 +15,13 @@ from .views import (
     ContentSubjectListView,
     ContentTopicDetailView,
     ContentTopicListView,
+    PublicSitemapView,
     SearchView,
     SectionDetailView,
+    SubjectBySlugView,
     SubjectDetailView,
     SubjectListView,
+    TopicBySlugView,
     TopicContentView,
     TopicDetailView,
     TopicListView,
@@ -26,10 +29,21 @@ from .views import (
 
 urlpatterns = [
     path("subjects/", SubjectListView.as_view(), name="subject-list"),
+    path(
+        "subjects/by-slug/<slug:slug>/",
+        SubjectBySlugView.as_view(),
+        name="subject-by-slug",
+    ),
     path("subjects/<int:pk>/", SubjectDetailView.as_view(), name="subject-detail"),
     path("sections/<int:pk>/", SectionDetailView.as_view(), name="section-detail"),
     path("topics/", TopicListView.as_view(), name="topic-list"),
+    path(
+        "topics/by-slug/<slug:subject_slug>/<slug:topic_slug>/",
+        TopicBySlugView.as_view(),
+        name="topic-by-slug",
+    ),
     path("topics/<int:pk>/", TopicDetailView.as_view(), name="topic-detail"),
+    path("catalog/sitemap/", PublicSitemapView.as_view(), name="public-sitemap"),
     path(
         "topics/<int:pk>/content/",
         TopicContentView.as_view(),

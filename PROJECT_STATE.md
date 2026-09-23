@@ -60,7 +60,7 @@ Order:
 3. BE-007 — dashboard/progress aggregate API — `MERGED`;
 4. BE-008 — profile/study preferences — `MERGED`;
 5. BE-009 — content bulk/import extensions — `BLOCKED`;
-6. BE-010 — slug-based public URLs — `BLOCKED`.
+6. BE-010 — slug-based public URLs — `IMPLEMENTED` (owner decision 2026-09-23).
 
 The briefs already list fixed constraints, exact unresolved decisions, expected
 future zones and non-goals. Do not spend model budget rediscovering them.

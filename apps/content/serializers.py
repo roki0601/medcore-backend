@@ -182,10 +182,55 @@ class SearchResultSerializer(serializers.Serializer):
     type = serializers.CharField()
     id = serializers.IntegerField()
     title = serializers.CharField()
+    slug = serializers.CharField()
+    subject_slug = serializers.CharField()
     subject_id = serializers.IntegerField(allow_null=True)
     section_id = serializers.IntegerField(allow_null=True)
     access_level = serializers.CharField(allow_null=True, required=False)
     has_demo_preview = serializers.BooleanField(allow_null=True, required=False)
+
+
+class PublicTopicLinkSerializer(serializers.Serializer):
+    title = serializers.CharField()
+    slug = serializers.CharField()
+
+
+class PublicSectionSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    title = serializers.CharField()
+    description = serializers.CharField()
+    slug = serializers.CharField()
+    position = serializers.IntegerField()
+    topics = TopicSerializer(many=True)
+
+
+class PublicSubjectSerializer(serializers.Serializer):
+    subject = SubjectSerializer()
+    sections = PublicSectionSerializer(many=True)
+
+
+class PublicTopicPageSerializer(serializers.Serializer):
+    topic = TopicSerializer()
+    subject = SubjectSerializer()
+    section = SectionSerializer()
+    previous = PublicTopicLinkSerializer(allow_null=True)
+    next = PublicTopicLinkSerializer(allow_null=True)
+
+
+class SitemapSubjectSerializer(serializers.Serializer):
+    slug = serializers.CharField()
+    updated_at = serializers.DateTimeField()
+
+
+class SitemapTopicSerializer(serializers.Serializer):
+    subject_slug = serializers.CharField()
+    slug = serializers.CharField()
+    updated_at = serializers.DateTimeField()
+
+
+class PublicSitemapSerializer(serializers.Serializer):
+    subjects = SitemapSubjectSerializer(many=True)
+    topics = SitemapTopicSerializer(many=True)
 
 
 # ---------------------------------------------------------------------------

@@ -29,7 +29,7 @@ For each run:
 | 3 | [BE-007 Progress/dashboard aggregate API](BE-007-progress-dashboard.md) | MERGED | Dashboard aggregate merged |
 | 4 | [BE-008 Profile and study preferences](BE-008-profile-preferences.md) | MERGED | Shipped in PR #16 |
 | 5 | [BE-009 Content bulk/import extensions](BE-009-content-bulk-import.md) | BLOCKED | bulk identity/removal/workflow semantics not accepted |
-| 6 | [BE-010 Slug-based public URLs](BE-010-slug-public-urls.md) | BLOCKED | uniqueness/collision/redirect policy unresolved |
+| 6 | [BE-010 Slug-based public URLs](BE-010-slug-public-urls.md) | IMPLEMENTED | owner decision 2026-09-23: slug canonical URLs, numeric API kept |
 
 ## Token-saving rule
 
