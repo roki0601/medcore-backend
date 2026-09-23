@@ -365,10 +365,13 @@ def test_openapi_contains_content_paths():
 
     assert "/api/v1/subjects/" in paths
     assert "/api/v1/subjects/{id}/" in paths
+    assert "/api/v1/subjects/by-slug/{slug}/" in paths
     assert "/api/v1/sections/{id}/" in paths
     assert "/api/v1/topics/" in paths
     assert "/api/v1/topics/{id}/" in paths
     assert "/api/v1/topics/{id}/content/" in paths
+    assert "/api/v1/topics/by-slug/{subject_slug}/{topic_slug}/" in paths
+    assert "/api/v1/catalog/sitemap/" in paths
     assert "/api/v1/search/" in paths
 
 

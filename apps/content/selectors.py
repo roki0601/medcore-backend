@@ -51,6 +51,67 @@ def get_published_topic(topic_id: int) -> Topic | None:
     return published_topics().filter(pk=topic_id).first()
 
 
+def get_subject_by_slug(slug: str) -> Subject | None:
+    return Subject.objects.select_related("cover").filter(slug=slug).first()
+
+
+def get_published_topic_by_slugs(subject_slug: str, topic_slug: str) -> Topic | None:
+    return (
+        published_topics()
+        .filter(slug=topic_slug, section__subject__slug=subject_slug)
+        .first()
+    )
+
+
+def subject_sections_with_topics(subject: Subject) -> list[tuple[Section, list[Topic]]]:
+    """Published topics grouped under every section, in one topics query."""
+
+    sections = list(subject.sections.order_by("position", "id"))
+    grouped: dict[int, list[Topic]] = {section.pk: [] for section in sections}
+    topics = (
+        published_topics()
+        .filter(section__subject=subject)
+        .order_by(
+            "section__position",
+            "position",
+            "id",
+        )
+    )
+    for topic in topics:
+        grouped.setdefault(topic.section_id, []).append(topic)
+    return [(section, grouped.get(section.pk, [])) for section in sections]
+
+
+def topic_neighbors(topic: Topic) -> tuple[Topic | None, Topic | None]:
+    """Previous and next published topics in the same subject."""
+
+    ordered = list(
+        published_topics()
+        .filter(section__subject_id=topic.section.subject_id)
+        .order_by("section__position", "position", "id")
+    )
+    index = next(
+        (position for position, item in enumerate(ordered) if item.pk == topic.pk),
+        None,
+    )
+    if index is None:
+        return None, None
+    previous_topic = ordered[index - 1] if index > 0 else None
+    next_topic = ordered[index + 1] if index + 1 < len(ordered) else None
+    return previous_topic, next_topic
+
+
+def public_sitemap():
+    subjects = Subject.objects.order_by("position", "id").only("slug", "updated_at")
+    topics = (
+        Topic.objects.filter(status=Topic.Status.PUBLISHED)
+        .select_related("section__subject")
+        .order_by("section__subject__position", "section__position", "position", "id")
+        .only("slug", "updated_at", "section__subject__slug")
+    )
+    return subjects, topics
+
+
 def topic_content_blocks(
     topic: Topic,
     *,
@@ -123,6 +184,8 @@ def search_titles(
                 "type": "subject",
                 "id": item.pk,
                 "title": item.title,
+                "slug": item.slug,
+                "subject_slug": item.slug,
                 "subject_id": item.pk,
                 "section_id": None,
                 "access_level": None,
@@ -135,6 +198,8 @@ def search_titles(
                 "type": "section",
                 "id": item.pk,
                 "title": item.title,
+                "slug": item.slug,
+                "subject_slug": item.subject.slug,
                 "subject_id": item.subject_id,
                 "section_id": item.pk,
                 "access_level": None,
@@ -147,6 +212,8 @@ def search_titles(
                 "type": "topic",
                 "id": item.pk,
                 "title": item.title,
+                "slug": item.slug,
+                "subject_slug": item.section.subject.slug,
                 "subject_id": item.section.subject_id,
                 "section_id": item.section_id,
                 "access_level": item.access_level,

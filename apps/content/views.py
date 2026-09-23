@@ -26,11 +26,16 @@ from apps.content.models import (
 )
 from apps.content.selectors import (
     get_published_topic,
+    get_published_topic_by_slugs,
     get_section,
     get_subject,
+    get_subject_by_slug,
     list_published_topics,
     list_subjects,
+    public_sitemap,
     search_titles,
+    subject_sections_with_topics,
+    topic_neighbors,
     topic_sources,
 )
 from apps.content.serializers import (
@@ -38,6 +43,9 @@ from apps.content.serializers import (
     ContentBlockWriteSerializer,
     FlashcardSerializer,
     FlashcardWriteSerializer,
+    PublicSitemapSerializer,
+    PublicSubjectSerializer,
+    PublicTopicPageSerializer,
     QuizDetailSerializer,
     QuizSerializer,
     QuizWriteSerializer,
@@ -264,6 +272,92 @@ class SearchView(generics.GenericAPIView):
         )
         page = self.paginate_queryset(results)
         return self.get_paginated_response(self.get_serializer(page, many=True).data)
+
+
+class SubjectBySlugView(generics.GenericAPIView):
+    permission_classes = (AllowAny,)
+    throttle_scope = "catalog"
+    serializer_class = PublicSubjectSerializer
+    pagination_class = None
+
+    @extend_schema(
+        responses={200: PublicSubjectSerializer, **ERROR_RESPONSES},
+        description=(
+            "Public subject hub by slug, with published topics grouped by section."
+        ),
+    )
+    def get(self, request, slug: str):
+        subject = get_subject_by_slug(slug)
+        if subject is None:
+            raise _not_found()
+        sections = [
+            {
+                "id": section.pk,
+                "title": section.title,
+                "description": section.description,
+                "slug": section.slug,
+                "position": section.position,
+                "topics": topics,
+            }
+            for section, topics in subject_sections_with_topics(subject)
+        ]
+        return Response(
+            self.get_serializer({"subject": subject, "sections": sections}).data
+        )
+
+
+class TopicBySlugView(generics.GenericAPIView):
+    permission_classes = (AllowAny,)
+    throttle_scope = "catalog"
+    serializer_class = PublicTopicPageSerializer
+    pagination_class = None
+
+    @extend_schema(
+        responses={200: PublicTopicPageSerializer, **ERROR_RESPONSES},
+        description=(
+            "Published topic located by subject and topic slug. Drafts are not found. "
+            "Content access stays on the numeric content endpoint."
+        ),
+    )
+    def get(self, request, subject_slug: str, topic_slug: str):
+        topic = get_published_topic_by_slugs(subject_slug, topic_slug)
+        if topic is None:
+            raise _not_found()
+        previous_topic, next_topic = topic_neighbors(topic)
+        payload = {
+            "topic": topic,
+            "subject": topic.section.subject,
+            "section": topic.section,
+            "previous": previous_topic,
+            "next": next_topic,
+        }
+        return Response(self.get_serializer(payload).data)
+
+
+class PublicSitemapView(generics.GenericAPIView):
+    permission_classes = (AllowAny,)
+    throttle_scope = "catalog"
+    serializer_class = PublicSitemapSerializer
+    pagination_class = None
+
+    @extend_schema(
+        responses={200: PublicSitemapSerializer, **ERROR_RESPONSES},
+        description="Published subject and topic slugs for the public sitemap.",
+    )
+    def get(self, request):
+        subjects, topics = public_sitemap()
+        payload = {
+            "subjects": subjects,
+            "topics": [
+                {
+                    "subject_slug": topic.section.subject.slug,
+                    "slug": topic.slug,
+                    "updated_at": topic.updated_at,
+                }
+                for topic in topics
+            ],
+        }
+        return Response(self.get_serializer(payload).data)
 
 
 # ---------------------------------------------------------------------------

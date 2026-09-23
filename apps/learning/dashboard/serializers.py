@@ -21,6 +21,7 @@ class DashboardSubjectSerializer(serializers.Serializer):
 
     id = serializers.IntegerField()
     title = serializers.CharField()
+    slug = serializers.CharField()
 
 
 class DashboardSectionSerializer(serializers.Serializer):
@@ -59,6 +60,7 @@ class DashboardTopicItemSerializer(serializers.Serializer):
 
     id = serializers.IntegerField()
     title = serializers.CharField()
+    slug = serializers.CharField()
     subject = DashboardSubjectSerializer()
     section = DashboardSectionSerializer()
     theory = DashboardTheorySerializer()
