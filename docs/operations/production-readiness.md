@@ -233,12 +233,13 @@ install -m 600 /dev/null .env.backend
 install -m 600 /dev/null .env.frontend
 ```
 
-Fill the env files, then run `./deploy.sh` by hand. Add GitHub Actions secrets
-only after that succeeds. The workflow is inert until it is on `main`. Its
-SSH command is `cd /root/dev/medcore && ./deploy.sh`.
+Fill the env files. Automatic and manual deploys are described in
+`docs/DEPLOYMENT.md`. The workflow is inert until it is on `main`. Its SSH
+command is `cd /root/dev/medcore && PREPMED_BACKEND_SHA=<sha> ./deploy.sh`.
 
-GitHub secrets, SSH only: `PROD_HOST`, `PROD_USER`, `PROD_SSH_KEY`, optional
-`PROD_PORT` and `PROD_KNOWN_HOSTS`. Do not store application secrets in GitHub.
+GitHub secrets, SSH only: `PROD_HOST`, `PROD_USER`, `PROD_SSH_KEY`, required
+`PROD_KNOWN_HOSTS`, optional `PROD_PORT`. Do not store application secrets in
+GitHub.
 
 ### Backup
 

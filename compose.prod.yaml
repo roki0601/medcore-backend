@@ -5,7 +5,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: prepmed-backend:${PREPMED_REVISION:-prod}
+    image: prepmed-backend:${PREPMED_BACKEND_REVISION:-prod}
     restart: unless-stopped
     env_file:
       - ${PREPMED_BACKEND_ENV:-/root/dev/medcore/.env.backend}
@@ -53,7 +53,7 @@ services:
         NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:?NEXT_PUBLIC_API_BASE_URL is required}
         NEXT_PUBLIC_TELEGRAM_BOT_USERNAME: ${NEXT_PUBLIC_TELEGRAM_BOT_USERNAME:-}
         NEXT_PUBLIC_YANDEX_METRIKA_ID: ${NEXT_PUBLIC_YANDEX_METRIKA_ID:-}
-    image: prepmed-frontend:${PREPMED_REVISION:-prod}
+    image: prepmed-frontend:${PREPMED_FRONTEND_REVISION:-prod}
     restart: unless-stopped
     env_file:
       - ${PREPMED_FRONTEND_ENV:-/root/dev/medcore/.env.frontend}
