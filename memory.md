@@ -75,7 +75,7 @@ implementation defaults.
   - Manual management via Django Admin.
 - Payment provider integration (BE-006: Robokassa MVP):
   - Provider: Robokassa for one-time manual Plan purchase (no recurring/autopay, no stored card credentials, no background workers).
-  - Fiscalization: Робочеки СМЗ (self-employed + "Мой налог"), delegated to Robokassa cabinet. Buyer email is passed in initialization URL if available.
+  - Fiscalization: Робочеки СМЗ (self-employed + "Мой налог"). Checkout GET redirect includes compliant `Receipt` parameter (`items` with name "Доступ к образовательной платформе Medcore — {duration} дней", quantity 1, sum from Decimal `Payment.amount`, `payment_method="full_payment"`, `payment_object="service"`, `tax="none"`). Serialized deterministically as compact UTF-8 JSON without float rounding, percent-encoded according to Robokassa specification without double encoding, and included in `calculate_payment_signature` (`MerchantLogin:OutSum:InvId:Receipt:Password_1`). Buyer email is passed in initialization URL if available.
   - Model: `Payment` with fields `id` (InvId), `user`, `plan`, `subscription`, `amount` (immutable snapshot of plan price), `status` (pending/succeeded/failed), `provider`, `paid_at`.
   - Signatures: Password #1 for checkout URL; Password #2 for ResultURL callback. Constant-time comparison `hmac.compare_digest`.
   - Concurrency & Idempotency: `process_robokassa_result` runs in `transaction.atomic()` with `select_for_update()`; duplicate callbacks return `OK{InvId}` safely without creating extra subscriptions.

@@ -1,6 +1,6 @@
-from __future__ import annotations
-
 import hashlib
+import json
+import urllib.parse
 from datetime import timedelta
 from decimal import Decimal
 from urllib.parse import parse_qs, urlparse
@@ -15,9 +15,11 @@ from apps.subscriptions.models import Payment, Plan, Subscription
 from apps.subscriptions.policy import has_paid_content_entitlement
 from apps.subscriptions.robokassa import (
     build_payment_url,
+    build_receipt,
     calculate_payment_signature,
     calculate_result_signature,
     format_out_sum,
+    serialize_receipt,
     verify_result_signature,
 )
 from apps.subscriptions.selectors import get_active_subscription
@@ -213,6 +215,7 @@ def test_build_payment_url_contains_all_params(user, plan, settings):
     assert params["IsTest"] == ["1"]
     assert params["Email"] == [user.email]
     assert "Description" in params
+    assert "Receipt" in params
     assert "SignatureValue" in params
 
 
@@ -737,17 +740,20 @@ def test_test_mode_uses_test_passwords_for_checkout_and_result(user, plan, setti
         status=Payment.Status.PENDING,
     )
     out_sum = "990.00"
+    receipt_json = serialize_receipt(payment)
     test_checkout = calculate_payment_signature(
         merchant_login="test_merchant",
         out_sum=out_sum,
         inv_id=payment.pk,
         password_1="cabinet_test_1",
+        receipt=receipt_json,
     )
     live_checkout = calculate_payment_signature(
         merchant_login="test_merchant",
         out_sum=out_sum,
         inv_id=payment.pk,
         password_1="live_pass_1",
+        receipt=receipt_json,
     )
     url = build_payment_url(payment)
     params = parse_qs(urlparse(url).query)
@@ -788,3 +794,297 @@ def test_production_check_requires_test_passwords_in_test_mode(settings):
     error_ids = {message.id for message in check_robokassa_configuration(None)}
     assert "subscriptions.E003" in error_ids
     assert "subscriptions.W001" in error_ids
+
+
+# ==============================================================================
+# 7. Fiscalization Receipt (FZ-54) & Signature Tests
+# ==============================================================================
+
+
+@pytest.mark.django_db
+def test_build_receipt_structure_and_invariants(user, plan):
+    payment = Payment.objects.create(
+        user=user,
+        plan=plan,
+        amount=plan.price_rub,
+        status=Payment.Status.PENDING,
+    )
+
+    receipt = build_receipt(payment)
+    assert "items" in receipt
+    assert len(receipt["items"]) == 1
+
+    item = receipt["items"][0]
+    assert item["quantity"] == 1
+    assert item["sum"] == Decimal("990.00")
+    assert item["payment_method"] == "full_payment"
+    assert item["payment_object"] == "service"
+    assert item["tax"] == "none"
+    assert (
+        item["name"]
+        == f"Доступ к образовательной платформе Medcore — {plan.duration_days} дней"
+    )
+    assert str(plan.id) not in item["name"]
+    assert plan.code not in item["name"]
+
+
+@pytest.mark.django_db
+def test_receipt_decimal_money_precision_399_90(user):
+    plan_399 = Plan.objects.create(
+        code="plan-399",
+        title="Спец-тариф 399.90",
+        price_rub=Decimal("399.90"),
+        duration_days=30,
+        is_active=True,
+    )
+    payment = Payment.objects.create(
+        user=user,
+        plan=plan_399,
+        amount=plan_399.price_rub,
+        status=Payment.Status.PENDING,
+    )
+
+    serialized = serialize_receipt(payment)
+    assert '"sum":399.90' in serialized
+
+    parsed = json.loads(serialized)
+    assert parsed["items"][0]["quantity"] == 1
+    assert Decimal(str(parsed["items"][0]["sum"])) == Decimal("399.90")
+
+    url = build_payment_url(payment)
+    parsed_url = urlparse(url)
+    params = parse_qs(parsed_url.query)
+    assert params["OutSum"] == ["399.90"]
+
+    url_receipt_json = params["Receipt"][0]
+    url_parsed_receipt = json.loads(url_receipt_json)
+    assert Decimal(str(url_parsed_receipt["items"][0]["sum"])) == Decimal("399.90")
+
+
+@pytest.mark.django_db
+def test_serialize_receipt_deterministic_and_cyrillic(user, plan):
+    payment = Payment.objects.create(
+        user=user,
+        plan=plan,
+        amount=plan.price_rub,
+        status=Payment.Status.PENDING,
+    )
+
+    s1 = serialize_receipt(payment)
+    s2 = serialize_receipt(payment)
+    assert s1 == s2
+    assert "Доступ к образовательной платформе Medcore" in s1
+    assert "\\u04" not in s1
+
+
+def test_signature_calculation_with_receipt():
+    merchant_login = "test_merchant"
+    out_sum = "990.00"
+    inv_id = 42
+    pwd_1 = "test_secret"
+    receipt_json = (
+        '{"items":[{"name":"Услуга","quantity":1,"sum":990.00,"tax":"none"}]}'
+    )
+    encoded_receipt = urllib.parse.quote(receipt_json, safe="")
+
+    expected_sha256 = (
+        hashlib.sha256(
+            f"{merchant_login}:{out_sum}:{inv_id}:{encoded_receipt}:{pwd_1}".encode()
+        )
+        .hexdigest()
+        .lower()
+    )
+
+    # Pass pre-encoded receipt
+    sig_encoded = calculate_payment_signature(
+        merchant_login=merchant_login,
+        out_sum=out_sum,
+        inv_id=inv_id,
+        password_1=pwd_1,
+        receipt=encoded_receipt,
+        hash_algorithm="sha256",
+    )
+    assert sig_encoded == expected_sha256
+
+    # Pass raw JSON string: calculate_payment_signature must automatically encode it
+    sig_raw = calculate_payment_signature(
+        merchant_login=merchant_login,
+        out_sum=out_sum,
+        inv_id=inv_id,
+        password_1=pwd_1,
+        receipt=receipt_json,
+        hash_algorithm="sha256",
+    )
+    assert sig_raw == expected_sha256
+
+    # MD5 support
+    expected_md5 = (
+        hashlib.md5(
+            f"{merchant_login}:{out_sum}:{inv_id}:{encoded_receipt}:{pwd_1}".encode()
+        )
+        .hexdigest()
+        .lower()
+    )
+    sig_md5 = calculate_payment_signature(
+        merchant_login=merchant_login,
+        out_sum=out_sum,
+        inv_id=inv_id,
+        password_1=pwd_1,
+        receipt=encoded_receipt,
+        hash_algorithm="md5",
+    )
+    assert sig_md5 == expected_md5
+
+
+def test_signature_sensitivity_to_each_parameter():
+    merchant_login = "test_merchant"
+    out_sum = "990.00"
+    inv_id = 42
+    pwd_1 = "test_secret"
+    receipt_1 = '{"items":[{"name":"Услуга 1","quantity":1,"sum":990.00,"tax":"none"}]}'
+    receipt_2 = '{"items":[{"name":"Услуга 2","quantity":1,"sum":990.00,"tax":"none"}]}'
+
+    base_sig = calculate_payment_signature(
+        merchant_login=merchant_login,
+        out_sum=out_sum,
+        inv_id=inv_id,
+        password_1=pwd_1,
+        receipt=receipt_1,
+    )
+
+    # Changing Receipt changes signature
+    assert (
+        calculate_payment_signature(
+            merchant_login=merchant_login,
+            out_sum=out_sum,
+            inv_id=inv_id,
+            password_1=pwd_1,
+            receipt=receipt_2,
+        )
+        != base_sig
+    )
+
+    # Changing OutSum changes signature
+    assert (
+        calculate_payment_signature(
+            merchant_login=merchant_login,
+            out_sum="991.00",
+            inv_id=inv_id,
+            password_1=pwd_1,
+            receipt=receipt_1,
+        )
+        != base_sig
+    )
+
+    # Changing InvId changes signature
+    assert (
+        calculate_payment_signature(
+            merchant_login=merchant_login,
+            out_sum=out_sum,
+            inv_id=43,
+            password_1=pwd_1,
+            receipt=receipt_1,
+        )
+        != base_sig
+    )
+
+    # Changing password changes signature
+    assert (
+        calculate_payment_signature(
+            merchant_login=merchant_login,
+            out_sum=out_sum,
+            inv_id=inv_id,
+            password_1="different_pwd",
+            receipt=receipt_1,
+        )
+        != base_sig
+    )
+
+
+@pytest.mark.django_db
+def test_build_payment_url_get_flow_no_double_encoding(user, plan):
+    payment = Payment.objects.create(
+        user=user,
+        plan=plan,
+        amount=plan.price_rub,
+        status=Payment.Status.PENDING,
+    )
+
+    url = build_payment_url(payment)
+    parsed = urlparse(url)
+    assert parsed.scheme == "https"
+    assert parsed.netloc == "auth.robokassa.ru"
+    assert parsed.path == "/Merchant/Index.aspx"
+
+    raw_query = parsed.query
+    # Check no double percent-encoding exists for JSON braces, quotes, spaces
+    assert "%257B" not in raw_query
+    assert "%2522" not in raw_query
+    assert "%2520" not in raw_query
+    # Standard percent-encoding is present
+    assert "%7B" in raw_query
+    assert "%22" in raw_query
+
+    params = parse_qs(raw_query)
+    for expected_key in (
+        "MerchantLogin",
+        "OutSum",
+        "InvId",
+        "Description",
+        "Receipt",
+        "SignatureValue",
+        "IsTest",
+    ):
+        assert expected_key in params
+
+    # Verify Receipt parses back to valid JSON with uncorrupted Cyrillic
+    receipt_json = params["Receipt"][0]
+    data = json.loads(receipt_json)
+    assert (
+        data["items"][0]["name"]
+        == f"Доступ к образовательной платформе Medcore — {plan.duration_days} дней"
+    )
+    assert data["items"][0]["quantity"] == 1
+    assert data["items"][0]["sum"] == 990.00
+    assert data["items"][0]["tax"] == "none"
+    assert data["items"][0]["payment_method"] == "full_payment"
+    assert data["items"][0]["payment_object"] == "service"
+
+
+@pytest.mark.django_db
+def test_build_payment_url_live_vs_test_mode(user, plan, settings):
+    payment = Payment.objects.create(
+        user=user,
+        plan=plan,
+        amount=plan.price_rub,
+        status=Payment.Status.PENDING,
+    )
+
+    # Test mode
+    settings.ROBOKASSA_TEST_MODE = True
+    test_url = build_payment_url(payment)
+    test_params = parse_qs(urlparse(test_url).query)
+    assert test_params["IsTest"] == ["1"]
+    assert "Receipt" in test_params
+
+    # Live mode
+    settings.ROBOKASSA_TEST_MODE = False
+    live_url = build_payment_url(payment)
+    live_params = parse_qs(urlparse(live_url).query)
+    assert "IsTest" not in live_params
+    assert "Receipt" in live_params
+
+
+@pytest.mark.django_db
+def test_build_payment_url_without_user_email(plan):
+    payment = Payment.objects.create(
+        user=None,
+        plan=plan,
+        amount=plan.price_rub,
+        status=Payment.Status.PENDING,
+    )
+    url = build_payment_url(payment)
+    params = parse_qs(urlparse(url).query)
+    assert "Email" not in params
+    assert "Receipt" in params
+    assert "SignatureValue" in params
