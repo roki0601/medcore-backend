@@ -303,7 +303,7 @@ def build_payment_url(payment: Payment) -> str:
         "OutSum": out_sum,
         "InvId": str(payment.pk),
         "Description": f"Подписка: {payment.plan.title}",
-        "Receipt": receipt_json,
+        "Receipt": receipt_encoded,
         "SignatureValue": signature,
     }
 

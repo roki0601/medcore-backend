@@ -856,7 +856,9 @@ def test_receipt_decimal_money_precision_399_90(user):
     params = parse_qs(parsed_url.query)
     assert params["OutSum"] == ["399.90"]
 
-    url_receipt_json = params["Receipt"][0]
+    url_receipt_encoded = params["Receipt"][0]
+    assert url_receipt_encoded.startswith("%7B")
+    url_receipt_json = urllib.parse.unquote(url_receipt_encoded)
     url_parsed_receipt = json.loads(url_receipt_json)
     assert Decimal(str(url_parsed_receipt["items"][0]["sum"])) == Decimal("399.90")
 
@@ -1002,7 +1004,7 @@ def test_signature_sensitivity_to_each_parameter():
 
 
 @pytest.mark.django_db
-def test_build_payment_url_get_flow_no_double_encoding(user, plan):
+def test_build_payment_url_get_flow_and_signature_verification(user, plan, settings):
     payment = Payment.objects.create(
         user=user,
         plan=plan,
@@ -1017,13 +1019,10 @@ def test_build_payment_url_get_flow_no_double_encoding(user, plan):
     assert parsed.path == "/Merchant/Index.aspx"
 
     raw_query = parsed.query
-    # Check no double percent-encoding exists for JSON braces, quotes, spaces
-    assert "%257B" not in raw_query
-    assert "%2522" not in raw_query
-    assert "%2520" not in raw_query
-    # Standard percent-encoding is present
-    assert "%7B" in raw_query
-    assert "%22" in raw_query
+    # In GET-flow, receipt_encoded (%7B...) is transport-encoded in query string,
+    # so raw_query legitimately contains %257B and %2522.
+    assert "%257B" in raw_query
+    assert "%2522" in raw_query
 
     params = parse_qs(raw_query)
     for expected_key in (
@@ -1037,9 +1036,27 @@ def test_build_payment_url_get_flow_no_double_encoding(user, plan):
     ):
         assert expected_key in params
 
-    # Verify Receipt parses back to valid JSON with uncorrupted Cyrillic
-    receipt_json = params["Receipt"][0]
-    data = json.loads(receipt_json)
+    # After standard URL-decoding by parse_qs (just like Robokassa does on GET),
+    # params["Receipt"][0] remains percent-encoded matching the value used in signature
+    # calculation.
+    receipt_param = params["Receipt"][0]
+    assert receipt_param.startswith("%7B%22")
+    assert "%22items%22" in receipt_param
+
+    # Recalculate signature directly from the parsed parameters received by Robokassa:
+    recalculated_sig = calculate_payment_signature(
+        merchant_login=params["MerchantLogin"][0],
+        out_sum=params["OutSum"][0],
+        inv_id=params["InvId"][0],
+        password_1=settings.ROBOKASSA_TEST_PASSWORD_1,
+        receipt=receipt_param,
+        hash_algorithm=settings.ROBOKASSA_HASH_ALGORITHM,
+    )
+    assert params["SignatureValue"][0] == recalculated_sig
+
+    # Unquoting the percent-encoded parameter yields valid JSON with preserved Cyrillic
+    decoded_json = urllib.parse.unquote(receipt_param)
+    data = json.loads(decoded_json)
     assert (
         data["items"][0]["name"]
         == f"Доступ к образовательной платформе Medcore — {plan.duration_days} дней"
