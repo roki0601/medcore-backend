@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import json
 import logging
 import urllib.parse
 from decimal import Decimal
@@ -19,6 +20,81 @@ SUPPORTED_ROBOKASSA_HASH_ALGORITHMS = {"md5", "sha256"}
 
 class RobokassaConfigurationError(ValueError):
     """Raised when Robokassa provider is invoked without valid configuration."""
+
+
+class RobokassaReceiptEncoder(json.JSONEncoder):
+    """JSON encoder preserving Decimal precision without float conversion."""
+
+    def iterencode(self, o, _one_shot=False):
+        def _encode(obj):
+            if isinstance(obj, Decimal):
+                yield f"{obj:.2f}"
+            elif isinstance(obj, dict):
+                yield "{"
+                first = True
+                for key, val in obj.items():
+                    if not first:
+                        yield ","
+                    first = False
+                    yield json.dumps(str(key), ensure_ascii=False)
+                    yield ":"
+                    yield from _encode(val)
+                yield "}"
+            elif isinstance(obj, (list, tuple)):
+                yield "["
+                first = True
+                for item in obj:
+                    if not first:
+                        yield ","
+                    first = False
+                    yield from _encode(item)
+                yield "]"
+            else:
+                yield json.dumps(obj, ensure_ascii=False)
+
+        return _encode(o)
+
+
+def build_receipt(payment: Payment) -> dict:
+    """Build fiscal receipt structure according to Robokassa FZ-54 specification.
+
+    Configured for self-employed status (Робочеки СМЗ + Мой налог):
+    - Single item corresponding to the purchased plan.
+    - quantity: 1
+    - sum: strictly equal to payment.amount (Decimal)
+    - payment_method: "full_payment" (полный расчет)
+    - payment_object: "service" (услуга)
+    - tax: "none" (без НДС)
+    - name: consumer-facing title without internal IDs or technical slugs.
+    """
+    duration = payment.plan.duration_days
+    item_name = f"Доступ к образовательной платформе Medcore — {duration} дней"
+    return {
+        "items": [
+            {
+                "name": item_name,
+                "quantity": 1,
+                "sum": payment.amount,
+                "payment_method": "full_payment",
+                "payment_object": "service",
+                "tax": "none",
+            }
+        ]
+    }
+
+
+def serialize_receipt(payment_or_dict: Payment | dict) -> str:
+    """Serialize receipt payload to compact, deterministic UTF-8 JSON.
+
+    Monetary values are formatted strictly with 2 decimal places from Decimal,
+    avoiding float conversion or rounding loss.
+    """
+    if isinstance(payment_or_dict, dict):
+        receipt_dict = payment_or_dict
+    else:
+        receipt_dict = build_receipt(payment_or_dict)
+
+    return json.dumps(receipt_dict, cls=RobokassaReceiptEncoder, ensure_ascii=False)
 
 
 def _setting_text(name: str) -> str:
@@ -54,11 +130,18 @@ def calculate_payment_signature(
     out_sum: str,
     inv_id: int | str,
     password_1: str,
+    receipt: str | None = None,
     hash_algorithm: str = "sha256",
 ) -> str:
     """Calculate Robokassa payment initialization signature using Password #1.
 
-    Raw string: MerchantLogin:OutSum:InvId:Password_1
+    Raw string without receipt: MerchantLogin:OutSum:InvId:Password_1
+    Raw string with receipt:    MerchantLogin:OutSum:InvId:Receipt:Password_1
+
+    According to Robokassa documentation, the Receipt parameter in the signature
+    string MUST be URL-encoded (RFC 3986 percent-encoded). If a raw JSON string
+    is passed, it is URL-encoded automatically.
+
     Fails closed if credentials are missing or algorithm is unsupported.
     """
     if not str(merchant_login).strip():
@@ -72,7 +155,19 @@ def calculate_payment_signature(
             f"Unsupported Robokassa hash algorithm: {hash_algorithm}"
         )
 
-    raw = f"{merchant_login}:{out_sum}:{inv_id}:{password_1}"
+    if receipt is not None:
+        receipt_str = str(receipt).strip()
+        if receipt_str:
+            if receipt_str.startswith("{") or receipt_str.startswith("["):
+                encoded_receipt = urllib.parse.quote(receipt_str, safe="")
+            else:
+                encoded_receipt = receipt_str
+            raw = f"{merchant_login}:{out_sum}:{inv_id}:{encoded_receipt}:{password_1}"
+        else:
+            raw = f"{merchant_login}:{out_sum}:{inv_id}:{password_1}"
+    else:
+        raw = f"{merchant_login}:{out_sum}:{inv_id}:{password_1}"
+
     if algo == "sha256":
         return hashlib.sha256(raw.encode()).hexdigest().lower()
     return hashlib.md5(raw.encode()).hexdigest().lower()
@@ -191,11 +286,15 @@ def build_payment_url(payment: Payment) -> str:
     )
 
     out_sum = format_out_sum(payment.amount)
+    receipt_json = serialize_receipt(payment)
+    receipt_encoded = urllib.parse.quote(receipt_json, safe="")
+
     signature = calculate_payment_signature(
         merchant_login=merchant_login,
         out_sum=out_sum,
         inv_id=payment.pk,
         password_1=password_1,
+        receipt=receipt_encoded,
         hash_algorithm=hash_algorithm,
     )
 
@@ -204,6 +303,7 @@ def build_payment_url(payment: Payment) -> str:
         "OutSum": out_sum,
         "InvId": str(payment.pk),
         "Description": f"Подписка: {payment.plan.title}",
+        "Receipt": receipt_json,
         "SignatureValue": signature,
     }
 
@@ -214,4 +314,5 @@ def build_payment_url(payment: Payment) -> str:
     if user_email:
         params["Email"] = user_email
 
-    return f"{base_url}?{urllib.parse.urlencode(params)}"
+    query_string = urllib.parse.urlencode(params, quote_via=urllib.parse.quote)
+    return f"{base_url}?{query_string}"
