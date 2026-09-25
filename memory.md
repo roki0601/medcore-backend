@@ -115,4 +115,5 @@ implementation defaults.
 - Medcore JSON Admin Import implemented and tested.
 - BE-009 content bulk import and BE-010 slug URLs remain blocked/deferred.
 - Local debug login endpoint `POST /api/v1/auth/dev/` (`DevLoginView`) added for frontend dev personas (`demo` and `premium`). Controlled via `DEV_AUTH_ENABLED` and `DEBUG`; returns 404 with `RESOURCE_NOT_FOUND` in production.
+- Feedback MVP: `apps.common.models.Feedback` model, Django admin with review/resolve actions, and public `POST /api/v1/feedback/` endpoint with anonymous (5/hour/IP) and authenticated (10/hour/user) rate limits.
 

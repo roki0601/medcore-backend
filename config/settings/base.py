@@ -108,6 +108,8 @@ THROTTLE_RATES = {
     "refresh": "30/min",
     "refresh_session": "30/min",
     "account_mutation": "10/min",
+    "feedback_anon": "5/hour",
+    "feedback_user": "10/hour",
     "catalog": "120/min",
     "content_read": "60/min",
     "search": "60/min",
