@@ -114,4 +114,5 @@ implementation defaults.
   not add product features or close unresolved product decisions.
 - Medcore JSON Admin Import implemented and tested.
 - BE-009 content bulk import and BE-010 slug URLs remain blocked/deferred.
+- LaTeX Repair Command: `apps/content/management/commands/fix_broken_latex.py` added for one-off cleanup of damaged LaTeX escape sequences (`\bullet`, `\rightarrow`, `\text`, `\frac`, etc.) caused by unescaped JSON control characters across all educational content models (`Subject`, `Section`, `Topic`, `ContentBlock`, `Flashcard`, `Quiz`, `QuizQuestion`, `QuizAnswer`, `Source`). Supports `--dry-run` and atomic batch execution.
 
