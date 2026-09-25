@@ -36,6 +36,7 @@ AUTH_REFRESH_COOKIE_SAMESITE = "Lax"
 AUTH_REFRESH_COOKIE_SECURE = env_bool("AUTH_REFRESH_COOKIE_SECURE", not DEBUG)
 AUTH_REFRESH_COOKIE_MAX_AGE = 30 * 24 * 60 * 60
 OPENAPI_PUBLIC = env_bool("OPENAPI_PUBLIC", DEBUG)
+DEV_AUTH_ENABLED = env_bool("DEV_AUTH_ENABLED", DEBUG)
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
@@ -107,6 +108,8 @@ THROTTLE_RATES = {
     "refresh": "30/min",
     "refresh_session": "30/min",
     "account_mutation": "10/min",
+    "feedback_anon": "5/hour",
+    "feedback_user": "10/hour",
     "catalog": "120/min",
     "content_read": "60/min",
     "search": "60/min",

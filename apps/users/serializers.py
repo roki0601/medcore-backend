@@ -27,6 +27,10 @@ class TelegramLoginRequestSerializer(serializers.Serializer):
         return value.lower()
 
 
+class DevLoginRequestSerializer(serializers.Serializer):
+    persona = serializers.ChoiceField(choices=["demo", "premium"])
+
+
 class UserSummarySerializer(serializers.ModelSerializer):
     has_telegram = serializers.SerializerMethodField()
 

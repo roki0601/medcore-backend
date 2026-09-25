@@ -1,6 +1,7 @@
 from django.urls import path
 
 from .views import (
+    DevLoginView,
     LogoutAllView,
     LogoutView,
     MeView,
@@ -11,6 +12,7 @@ from .views import (
 
 urlpatterns = [
     path("auth/telegram/", TelegramLoginView.as_view(), name="auth-telegram"),
+    path("auth/dev/", DevLoginView.as_view(), name="auth-dev"),
     path(
         "auth/token/refresh/",
         RefreshTokenView.as_view(),
