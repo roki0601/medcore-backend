@@ -115,4 +115,6 @@ implementation defaults.
 - Medcore JSON Admin Import implemented and tested.
 - BE-009 content bulk import and BE-010 slug URLs remain blocked/deferred.
 - LaTeX Repair Command: `apps/content/management/commands/fix_broken_latex.py` added for one-off cleanup of damaged LaTeX escape sequences (`\bullet`, `\rightarrow`, `\text`, `\frac`, etc.) caused by unescaped JSON control characters across all educational content models (`Subject`, `Section`, `Topic`, `ContentBlock`, `Flashcard`, `Quiz`, `QuizQuestion`, `QuizAnswer`, `Source`). Supports `--dry-run` and atomic batch execution.
+- Local debug login endpoint `POST /api/v1/auth/dev/` (`DevLoginView`) added for frontend dev personas (`demo` and `premium`). Controlled via `DEV_AUTH_ENABLED` and `DEBUG`; returns 404 with `RESOURCE_NOT_FOUND` in production.
+- Feedback MVP: `apps.common.models.Feedback` model, Django admin with review/resolve actions, and public `POST /api/v1/feedback/` endpoint with anonymous (5/hour/IP) and authenticated (10/hour/user) rate limits.
 

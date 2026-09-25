@@ -20,6 +20,7 @@ from apps.common.serializers import APIErrorResponseSerializer
 from .serializers import (
     AuthTokenResponseSerializer,
     DeleteAccountSerializer,
+    DevLoginRequestSerializer,
     RefreshTokenResponseSerializer,
     TelegramLoginRequestSerializer,
     UserProfileSerializer,
@@ -28,6 +29,7 @@ from .serializers import (
     UserUpdateSerializer,
 )
 from .services import (
+    authenticate_dev,
     authenticate_telegram,
     delete_account,
     get_or_create_profile,
@@ -121,6 +123,35 @@ class TelegramLoginView(APIView):
         serializer = TelegramLoginRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user, token_pair = authenticate_telegram(serializer.validated_data)
+        response = Response(
+            {
+                "access_token": token_pair.access_token,
+                "expires_in": token_pair.access_expires_in,
+                "user": UserSummarySerializer(user).data,
+            },
+            status=status.HTTP_200_OK,
+        )
+        _set_refresh_cookie(response, token_pair.refresh_token)
+        return response
+
+
+@method_decorator(csrf_protect, name="dispatch")
+class DevLoginView(APIView):
+    authentication_classes = ()
+    permission_classes = (AllowAny,)
+
+    @extend_schema(
+        request=DevLoginRequestSerializer,
+        responses={200: AuthTokenResponseSerializer, **ERROR_RESPONSES},
+        parameters=[CSRF_HEADER_PARAMETER],
+        description="Local DEBUG-only login endpoint for test personas.",
+    )
+    def post(self, request):
+        if not (settings.DEBUG and getattr(settings, "DEV_AUTH_ENABLED", False)):
+            raise APIError("Not found.", code="RESOURCE_NOT_FOUND", status_code=404)
+        serializer = DevLoginRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user, token_pair = authenticate_dev(serializer.validated_data["persona"])
         response = Response(
             {
                 "access_token": token_pair.access_token,

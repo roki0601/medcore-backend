@@ -4,6 +4,7 @@ import hashlib
 import hmac
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from typing import Any
 
 from django.conf import settings
@@ -250,6 +251,58 @@ def authenticate_telegram(payload: dict[str, Any]) -> tuple[User, TokenPair]:
                 continue
             raise
     raise RuntimeError("Telegram authentication retry exhausted")
+
+
+def authenticate_dev(persona: str) -> tuple[User, TokenPair]:
+    if not (settings.DEBUG and getattr(settings, "DEV_AUTH_ENABLED", False)):
+        raise APIError("Not found.", code="RESOURCE_NOT_FOUND", status_code=404)
+
+    if persona not in ("demo", "premium"):
+        raise APIError("Invalid persona.", code="INVALID_REQUEST", status_code=400)
+
+    username = persona
+    with transaction.atomic():
+        user = User.objects.select_for_update().filter(username=username).first()
+        if user is None:
+            user = User(
+                username=username,
+                role=User.Role.USER,
+                is_active=True,
+            )
+            user.set_unusable_password()
+            user.full_clean(validate_unique=False, validate_constraints=False)
+            user.save(force_insert=True)
+        elif not user.is_active:
+            raise APIError(
+                "User account is inactive.",
+                code="AUTH_USER_INACTIVE",
+                status_code=401,
+            )
+
+        if persona == "premium":
+            from apps.subscriptions.models import Plan, Subscription
+
+            plan, _ = Plan.objects.get_or_create(
+                code="premium-dev",
+                defaults={
+                    "title": "Dev Premium",
+                    "price_rub": Decimal("0.00"),
+                    "duration_days": 365,
+                    "is_active": True,
+                },
+            )
+            now = timezone.now()
+            Subscription.objects.update_or_create(
+                user=user,
+                defaults={
+                    "plan": plan,
+                    "status": Subscription.Status.ACTIVE,
+                    "starts_at": now,
+                    "expires_at": now + timedelta(days=365),
+                },
+            )
+
+        return user, _token_pair(user)
 
 
 def refresh_access_token(raw_refresh_token: str) -> tuple[str, int]:
