@@ -29,7 +29,10 @@ LATEX_REPLACEMENTS: tuple[tuple[str, str, str], ...] = (
     # Core requested signatures (control character + literal representation)
     ("\x08ullet", r"\bullet", LABEL_BULLET),
     (r"\x08ullet", r"\bullet", LABEL_BULLET),
+    ("\r\n" + "ightarrow", r"\rightarrow", LABEL_RIGHTARROW),
     ("\r" + "ightarrow", r"\rightarrow", LABEL_RIGHTARROW),
+    ("\n" + "ightarrow", r"\rightarrow", LABEL_RIGHTARROW),
+    ("//rightarrow", r"\rightarrow", LABEL_RIGHTARROW),
     ("\t" + "ext", r"\text", LABEL_TEXT),
     ("\x0c" + "rac", r"\frac", LABEL_FRAC),
     (r"\x0crac", r"\frac", LABEL_FRAC),

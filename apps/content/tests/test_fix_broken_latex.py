@@ -27,6 +27,9 @@ from apps.content.models import (
         ("$O_2^{\x08ullet-}$", r"$O_2^{\bullet-}$", r"\bullet", 1),
         (r"$O_2^{\x08ullet-}$", r"$O_2^{\bullet-}$", r"\bullet", 1),
         ("A \r" + "ightarrow B", r"A \rightarrow B", r"\rightarrow", 1),
+        ("A\n" + "ightarrow B", r"A\rightarrow B", r"\rightarrow", 1),
+        ("A\r\n" + "ightarrow B", r"A\rightarrow B", r"\rightarrow", 1),
+        ("A //rightarrow B", r"A \rightarrow B", r"\rightarrow", 1),
         ("$" + "\t" + "ext{hello}$", r"$\text{hello}$", r"\text", 1),
         ("$\x0crac{a}{b}$", r"$\frac{a}{b}$", r"\frac", 1),
         (r"$\x0crac{a}{b}$", r"$\frac{a}{b}$", r"\frac", 1),
@@ -101,7 +104,7 @@ def test_fix_broken_latex_dry_run_and_execution() -> None:
     topic = Topic.objects.create(
         section=section,
         title="ROS \x08ullet Title",
-        description="Pathways with \r" + "ightarrow arrow",
+        description="Pathways: \r" + "ightarrow, //rightarrow, and \n" + "ightarrow",
         slug="ros-pathways",
         position=1,
     )
@@ -157,6 +160,7 @@ def test_fix_broken_latex_dry_run_and_execution() -> None:
     # Verify nothing was changed in the DB
     topic.refresh_from_db()
     assert topic.title == "ROS \x08ullet Title"
+    assert "//rightarrow" in topic.description
     block.refresh_from_db()
     assert "\x08ullet" in block.markdown_body
 
@@ -168,7 +172,7 @@ def test_fix_broken_latex_dry_run_and_execution() -> None:
     assert "Scanned:" in real_output
     assert "Affected: 5" in real_output
     assert r"\bullet: 3" in real_output
-    assert r"\rightarrow: 2" in real_output
+    assert r"\rightarrow: 4" in real_output
     assert r"\text: 1" in real_output
     assert r"\frac: 2" in real_output
     assert "Successfully updated 5 objects in transaction.atomic." in real_output
@@ -176,7 +180,7 @@ def test_fix_broken_latex_dry_run_and_execution() -> None:
     # Verify changes were saved in the DB
     topic.refresh_from_db()
     assert topic.title == r"ROS \bullet Title"
-    assert topic.description == r"Pathways with \rightarrow arrow"
+    assert topic.description == r"Pathways: \rightarrow, \rightarrow, and \rightarrow"
 
     block.refresh_from_db()
     expected_body = r"$O_2^{\bullet-} \rightarrow H_2O_2 \text{ and } \frac{1}{2}$"
